@@ -1,1 +1,0 @@
-print("Hola prof ya me apuro a hacer el proyecto lo juro")
