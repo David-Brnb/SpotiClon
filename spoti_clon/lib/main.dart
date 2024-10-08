@@ -106,6 +106,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   var selectedIndex = 0;
+  bool isRailExpanded = false; // Variable para controlar el estado del NavigationRail
 
   @override
   Widget build(BuildContext context) {
@@ -121,30 +122,50 @@ class _MyHomePageState extends State<MyHomePage> {
         throw UnimplementedError('no widget for $selectedIndex');
     }
 
-    return LayoutBuilder(builder: (context, constrainst) {
+    return LayoutBuilder(builder: (context, constraints) {
+      // Controlar si se debe expandir el NavigationRail basado en el tamaño o el botón
+      bool shouldExpand = isRailExpanded;
+      bool shouldShowButton = constraints.maxWidth >= 650;
+
       return Scaffold(
         body: Row(
           children: [
             SafeArea(
-              child: NavigationRail(
-                extended: constrainst.maxWidth >= 750,
-                minExtendedWidth: constrainst.maxWidth / 4.16,
-                destinations: [
-                  NavigationRailDestination(
-                    icon: Icon(Icons.home),
-                    label: Text('Home'),
-                  ),
-                  NavigationRailDestination(
-                    icon: Icon(Icons.music_note),
-                    label: Text('Songs'),
+              child: Column(
+                children: [
+                  // Botón para abrir/cerrar el NavigationRail
+                  if(shouldShowButton)
+                    IconButton(
+                      icon: Icon(isRailExpanded ? Icons.arrow_back : Icons.menu),
+                      onPressed: () {
+                        setState(() {
+                          isRailExpanded = !isRailExpanded; // Alternar el estado
+                        });
+                      },
+                    ),
+                  Expanded(
+                    child: NavigationRail(
+                      extended: shouldExpand,
+                      minExtendedWidth: shouldExpand ? constraints.maxWidth / 4.16 : null,
+                      destinations: [
+                        NavigationRailDestination(
+                          icon: Icon(Icons.home),
+                          label: Text('Home'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.music_note),
+                          label: Text('Songs'),
+                        ),
+                      ],
+                      selectedIndex: selectedIndex,
+                      onDestinationSelected: (value) {
+                        setState(() {
+                          selectedIndex = value;
+                        });
+                      },
+                    ),
                   ),
                 ],
-                selectedIndex: selectedIndex,
-                onDestinationSelected: (value) {
-                  setState(() {
-                    selectedIndex = value;
-                  });
-                },
               ),
             ),
             Expanded(
