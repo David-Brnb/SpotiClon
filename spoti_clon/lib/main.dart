@@ -29,6 +29,22 @@ class MyApp extends StatelessWidget {
   }
 }
 
+class SongManager {
+  static final SongManager _instance = SongManager._internal();
+  Future<List<Map<String, dynamic>>>? futureSongs;
+
+  factory SongManager() {
+    return _instance;
+  }
+
+  SongManager._internal();
+
+  void refreshSongs() {
+    futureSongs = MySQLDatabase.descargaRolas();
+  }
+}
+
+
 class MyAppState extends ChangeNotifier {
   var current = WordPair.random();
   var selectedDirectory=""; // Variable para almacenar la ruta seleccionada
@@ -98,6 +114,7 @@ class MyAppState extends ChangeNotifier {
     isMining = false;
     notifyListeners();
   }
+  
 }
 
 class MyHomePage extends StatefulWidget {
@@ -128,6 +145,16 @@ class _MyHomePageState extends State<MyHomePage> {
         break;
       case 1:
         page = const SongsPage();
+        break;
+      case 2: 
+        page = const Scaffold(
+          body: Center(child: Text('Page 2')),
+        );
+        break;
+      case 3: 
+        page = const Scaffold(
+          body: Center(child: Text('Page 3')),
+        );
         break;
       default:
         throw UnimplementedError('no widget for $selectedIndex');
@@ -167,6 +194,14 @@ class _MyHomePageState extends State<MyHomePage> {
                           icon: Icon(Icons.music_note),
                           label: Text('Songs'),
                         ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.album),
+                          label: Text('Albums'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.person),
+                          label: Text('Person'),
+                        ),
                       ],
                       selectedIndex: selectedIndex,
                       onDestinationSelected: (value) {
@@ -192,32 +227,95 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-class SongsPage extends StatelessWidget {
+class SongsPage extends StatefulWidget {
   const SongsPage({super.key});
 
   @override
+  State<SongsPage> createState() => _SongsPageState();
+}
+
+class _SongsPageState extends State<SongsPage> {
+  late Future<List<Map<String, dynamic>>> futureSongs;
+
+  @override
+  void initState() {
+    super.initState();
+    // Descargar las canciones cuando se inicializa la página
+    futureSongs = MySQLDatabase.descargaRolas();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    var appState = context.watch<MyAppState>();
-    var songs = appState.songs;
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: futureSongs, // Llamada asincrónica para obtener las canciones
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          // Mostrar un indicador de carga mientras se descargan las canciones
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          // Mostrar un mensaje de error si algo salió mal
+          return Center(child: Text('Error: ${snapshot.error}'));
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          // Mostrar un mensaje si no hay canciones
+          return const Center(child: Text('No songs yet'));
+        }
 
-    if (songs.isEmpty) {
-      return const Center(
-        child: Text('No songs yet'),
-      );
-    }
+        // Mostrar la lista de canciones si todo está bien
+        var songs = snapshot.data!;
+        return ListView(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text('You have ${songs.length} songs: '),
+            ),
+            for (var song in songs)
+              ListTile(
+                leading: const Icon(Icons.music_note),
+                title: Text(song['title'] ?? 'Unknown Title'),
+                subtitle: Text(song['artist'] ?? 'Unknown Artist'),
+                onTap: () {
+                  // Navigator.pop(context);
+                  // Al presionar, mostramos el menú o bottom sheet
+                  _showSongMenu(context, song);
+                },
+                
+              ),
+          ],
+        );
+      },
+    );
+  }
 
-    return ListView(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(20),
-          child: Text('You have ${songs.length} songs: '),
-        ),
-        for (var pair in songs)
-          ListTile(
-            leading: const Icon(Icons.music_note),
-            title: Text(pair.asLowerCase),
+  // Función para mostrar un menú o bottom sheet al presionar una canción
+  void _showSongMenu(BuildContext context, Map<String, dynamic> song) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.add),
+                title: const Text('Add to Playlist'),
+                onTap: () {
+                  Navigator.pop(context); // Cerrar el menú
+                  // Lógica para agregar la canción a la playlist
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.info),
+                title: const Text('View Details'),
+                onTap: () {
+                  Navigator.pop(context); // Cerrar el menú
+                  // Lógica para mostrar detalles de la canción
+                },
+              ),
+            ],
           ),
-      ],
+        );
+      },
     );
   }
 }
@@ -285,19 +383,7 @@ class GeneratorPage extends StatelessWidget {
           ] else if (minedSongs.isNotEmpty) ...[
             const SizedBox(height: 20),
             Text('Mining completed! Found ${minedSongs.length} songs.'),
-            Expanded(
-              child: ListView.builder(
-                itemCount: minedSongs.length,
-                itemBuilder: (context, index) {
-                  final song = minedSongs[index];
-                  return ListTile(
-                    title: Text(song['title']),
-                    subtitle: Text(song['artist']),
-                    // subtitle: Text(song['album']),
-                  );
-                },
-              ),
-            ),
+            
           ],
         ],
       ),

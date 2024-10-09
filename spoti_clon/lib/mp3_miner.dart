@@ -36,84 +36,92 @@ class Mp3Miner {
           songs.add({
             'title': tags['title'] ?? 'Unknown',   // Título de la canción
             'artist': tags['artist'] ?? 'Unknown',  // Intérprete
-            'album': tags['album'] ?? 'Unknown',   // Álbum
-            'year': tags['date'] ?? 'Unknown',    // Año de grabación
-            'genre': tags['genre'] ?? 'Unknown',   // Género
-            'track': tags['track'] ?? 'Unknown',   // Número de pista
-            'path': file.path,
-        });
+          });
 
-        var name = tags['artist'] ?? 'Unknown';
-        var album = tags['album'] ?? 'Unknown';
-        int year = int.tryParse(tags['date'] ?? 'Unknown') ?? 0;
-        var title = tags['title'] ?? 'Unknown';
-        var genre = tags['genre'] ?? 'Unknown';
-        int track = int.tryParse(tags['track'] ?? 'Unknown') ?? 0;
-        var idType = 0;
-        
-        // Verificar si ya existe un performer con ese nombre e id_type
-        var res = await conn.query(
-          'SELECT id_performer FROM performers WHERE name = ? AND id_type = ?',
-          [name, idType]
-        );
-        
-        int idPerformer;
-
-        if (res.isEmpty) {
-          // Si no existe, obtener el id_performer más alto y agregar el nuevo performer
-          var maxIdResult = await conn.query('SELECT IFNULL(MAX(id_performer), 0) as max_id FROM performers');
-          idPerformer = maxIdResult.first['max_id'] + 1;
-
-          // Insertar el nuevo performer
-          await conn.query(
-            'INSERT INTO performers (id_performer, id_type, name) VALUES (?, ?, ?)',
-            [idPerformer, idType, name]
+          var name = tags['artist'] ?? 'Unknown';
+          var album = tags['album'] ?? 'Unknown';
+          int year = int.tryParse(tags['date'] ?? 'Unknown') ?? 0;
+          var title = tags['title'] ?? 'Unknown';
+          var genre = tags['genre'] ?? 'Unknown';
+          int track = int.tryParse(tags['track'] ?? tags['TRCK'] ?? 'Unknown') ?? 0;
+          var idType = 0;
+          
+          // Verificar si ya existe un performer con ese nombre e id_type
+          var res = await conn.query(
+            'SELECT id_performer FROM performers WHERE name = ? AND id_type = ?',
+            [name, idType]
           );
-          print('Nuevo performer insertado con id: $idPerformer');
-        } else {
-          // Si ya existe, obtener el id_performer
-          idPerformer = res.first['id_performer'];
-          print('El performer ya existe con id: $idPerformer');
-        }
+          
+          int idPerformer;
 
-        // Ahora verificar y/o insertar el álbum
-        res = await conn.query(
-          'SELECT COUNT(*) as count FROM albums WHERE name = ?',
-          [album]
-        );
-        int count = res.first['count'];
-        var albumId;
+          if (res.isEmpty) {
+            // Si no existe, obtener el id_performer más alto y agregar el nuevo performer
+            var maxIdResult = await conn.query('SELECT IFNULL(MAX(id_performer), 0) as max_id FROM performers');
+            idPerformer = maxIdResult.first['max_id'] + 1;
 
-        if (count == 0) {
-          // Si el álbum no existe, obtener el id_album más alto actual e insertarlo
-          var maxIdResult = await conn.query('SELECT IFNULL(MAX(id_album), 0) as max_id FROM albums');
-          albumId = maxIdResult.first['max_id'] + 1;
+            // Insertar el nuevo performer
+            await conn.query(
+              'INSERT INTO performers (id_performer, id_type, name) VALUES (?, ?, ?)',
+              [idPerformer, idType, name]
+            );
+            print('Nuevo performer insertado con id: $idPerformer');
+          } else {
+            // Si ya existe, obtener el id_performer
+            idPerformer = res.first['id_performer'];
+            print('El performer ya existe con id: $idPerformer');
+          }
 
-          await conn.query(
-            'INSERT INTO albums (id_album, name, year, path) VALUES (?, ?, ?, ?)',
-            [albumId, album, year, file.path]
-          );
-          print('Nuevo álbum insertado con id: $albumId');
-        } else {
-          // Si el álbum ya existe, obtener el id_album
-          var existingAlbumResult = await conn.query(
-            'SELECT id_album FROM albums WHERE name = ?',
+          // Ahora verificar y/o insertar el álbum
+          res = await conn.query(
+            'SELECT COUNT(*) as count FROM albums WHERE name = ?',
             [album]
           );
-          albumId = existingAlbumResult.first['id_album'];
-          print('Álbum ya existente, id: $albumId');
-        }
+          int count = res.first['count'];
+          var albumId;
 
-        // Ahora insertar la canción (rola)
-        var maxIdRolaResult = await conn.query('SELECT IFNULL(MAX(id_rola), 0) as max_id FROM rolas');
-        int newIdRola = maxIdRolaResult.first['max_id'] + 1;
+          if (count == 0) {
+            // Si el álbum no existe, obtener el id_album más alto actual e insertarlo
+            var maxIdResult = await conn.query('SELECT IFNULL(MAX(id_album), 0) as max_id FROM albums');
+            albumId = maxIdResult.first['max_id'] + 1;
 
-        await conn.query(
-          'INSERT INTO rolas (id_rola, id_performer, id_album, path, title, track, year, genre) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          [newIdRola, idPerformer, albumId, file.path, title, track, year, genre]
-        );
+            await conn.query(
+              'INSERT INTO albums (id_album, name, year, path) VALUES (?, ?, ?, ?)',
+              [albumId, album, year, file.path]
+            );
+            print('Nuevo álbum insertado con id: $albumId');
+          } else {
+            // Si el álbum ya existe, obtener el id_album
+            var existingAlbumResult = await conn.query(
+              'SELECT id_album FROM albums WHERE name = ?',
+              [album]
+            );
+            albumId = existingAlbumResult.first['id_album'];
+            print('Álbum ya existente, id: $albumId');
+          }
 
-        print('Nueva rola insertada con id: $newIdRola');
+          res = await conn.query(
+            'SELECT COUNT(*) as count FROM rolas WHERE title = ?',
+            [title]
+          );
+          count = res.first['count'];
+          int newIdRola = -1;
+
+          if(count == 0){
+            // Ahora insertar la canción (rola)
+            var maxIdRolaResult = await conn.query('SELECT IFNULL(MAX(id_rola), 0) as max_id FROM rolas');
+            newIdRola = maxIdRolaResult.first['max_id'] + 1;
+
+            await conn.query(
+              'INSERT INTO rolas (id_rola, id_performer, id_album, path, title, track, year, genre) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+              [newIdRola, idPerformer, albumId, file.path, title, track, year, genre]
+            );
+
+            print('Nueva rola insertada con id: $newIdRola');
+
+          } else {
+            print('La rola ya existe');
+          }
+
         } else {
           print("Error al procesar ${file.path}: ${result.stderr}");
         }

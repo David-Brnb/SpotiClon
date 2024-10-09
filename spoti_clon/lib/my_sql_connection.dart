@@ -95,7 +95,9 @@ class MySQLDatabase {
       ''');
 
       // Verificar si la tabla 'types' ya tiene datos
+      await Future.delayed(const Duration(seconds: 1));
       var result = await conn.query('SELECT COUNT(*) as count FROM types');
+      await Future.delayed(const Duration(seconds: 1));
 
       if (result.isNotEmpty) {
         var rowCount = result.first['count'];
@@ -122,4 +124,47 @@ class MySQLDatabase {
       print('Error al crear las tablas: $e');
     }
   }
+
+  static Future<List<Map<String, dynamic>>> descargaRolas() async {
+    List<Map<String, dynamic>> songs = [];
+    var conn = await MySQLDatabase.getConnection(); // Abre la conexión a la base de datos
+
+    try {
+      await Future.delayed(const Duration(milliseconds: 500));
+      // Consultar todas las filas de la tabla 'rolas' y unirse con la tabla 'performers' para obtener los nombres de los artistas
+      var results = await conn.query('''
+        SELECT r.id_rola, r.id_performer, r.id_album, r.path, r.title, r.track, r.year, r.genre, p.name as artist
+        FROM rolas r
+        JOIN performers p ON r.id_performer = p.id_performer
+      ''');
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Iterar sobre los resultados y agregarlos a la lista de mapas
+      for (var row in results) {
+        Map<String, dynamic> song = {
+          'id_rola': row['id_rola'],
+          'id_performer': row['id_performer'],
+          'id_album': row['id_album'],
+          'path': row['path'].toString(), // Asegurarse de que `path` es un string
+          'title': row['title'].toString(), // Asegurarse de que `title` es un string
+          'artist': row['artist'].toString(), // Usar directamente el valor del artista
+          'track': row['track'],
+          'year': row['year'],
+          'genre': row['genre'].toString(), // Asegurarse de que `genre` es un string
+        };
+        songs.add(song);
+      }
+
+      print('Consulta ejecutada: Resultados obtenidos');
+      print(songs);
+    } catch (e) {
+      print('Error al ejecutar la consulta: $e');
+    } finally {
+      await conn.close(); // Cerrar la conexión a la base de datos
+    }
+
+    return songs; // Retornar la lista de canciones descargadas
+  }
+
+
 }
