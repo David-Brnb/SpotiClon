@@ -96,17 +96,22 @@ class MySQLDatabase {
 
       // Verificar si la tabla 'types' ya tiene datos
       var result = await conn.query('SELECT COUNT(*) as count FROM types');
-      var rowCount = result.first['count'];
 
-      if (rowCount == 0) {
-        // Si no hay registros, hacer las inserciones
-        await conn.query('INSERT INTO types (id_type, description) VALUES (0, "Person")');
-        await conn.query('INSERT INTO types (id_type, description) VALUES (1, "Group")');
-        await conn.query('INSERT INTO types (id_type, description) VALUES (2, "Unknown")');
+      if (result.isNotEmpty) {
+        var rowCount = result.first['count'];
 
-        print('Inserciones realizadas en la tabla types.');
+        if (rowCount == 0) {
+          // Si no hay registros, hacer las inserciones
+          await conn.query('INSERT INTO types (id_type, description) VALUES (0, "Person")');
+          await conn.query('INSERT INTO types (id_type, description) VALUES (1, "Group")');
+          await conn.query('INSERT INTO types (id_type, description) VALUES (2, "Unknown")');
+
+          print('Inserciones realizadas en la tabla types.');
+        } else {
+          print('La tabla types ya contiene datos. No se realizaron inserciones.');
+        }
       } else {
-        print('La tabla types ya contiene datos. No se realizaron inserciones.');
+        print('La consulta no devolvió ningún resultado.');
       }
 
       print('Tables created successfully!');

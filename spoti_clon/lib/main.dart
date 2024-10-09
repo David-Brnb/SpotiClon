@@ -293,6 +293,7 @@ class GeneratorPage extends StatelessWidget {
                   return ListTile(
                     title: Text(song['title']),
                     subtitle: Text(song['artist']),
+                    // subtitle: Text(song['album']),
                   );
                 },
               ),
