@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'mp3_miner.dart'; // Importar el minero
+import 'my_sql_connection.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -21,7 +22,7 @@ class MyApp extends StatelessWidget {
           useMaterial3: true,
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueGrey),
         ),
-        home: MyHomePage(),
+        home: const MyHomePage(),
         debugShowCheckedModeBanner: false,
       ),
     );
@@ -30,7 +31,7 @@ class MyApp extends StatelessWidget {
 
 class MyAppState extends ChangeNotifier {
   var current = WordPair.random();
-  var selectedDirectory; // Variable para almacenar la ruta seleccionada
+  var selectedDirectory=""; // Variable para almacenar la ruta seleccionada
   List<Map<String, dynamic>> minedSongs = []; // Canciones minadas
   double miningProgress = 0.0; // Progreso del minado
   bool isMining = false; // Indicar si se está minando
@@ -100,51 +101,82 @@ class MyAppState extends ChangeNotifier {
 }
 
 class MyHomePage extends StatefulWidget {
+  const MyHomePage({super.key});
+
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
   var selectedIndex = 0;
+  bool isRailExpanded = false; // Variable para controlar el estado del NavigationRail
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Aquí llamas a la función que crea las tablas solo la primera vez
+    MySQLDatabase.createTables(); // Asegúrate de tener la clase y método correctos
+  }
 
   @override
   Widget build(BuildContext context) {
     Widget page;
     switch (selectedIndex) {
       case 0:
-        page = GeneratorPage();
+        page = const GeneratorPage();
         break;
       case 1:
-        page = SongsPage();
+        page = const SongsPage();
         break;
       default:
         throw UnimplementedError('no widget for $selectedIndex');
     }
 
-    return LayoutBuilder(builder: (context, constrainst) {
+    return LayoutBuilder(builder: (context, constraints) {
+      // Controlar si se debe expandir el NavigationRail basado en el tamaño o el botón
+      bool shouldExpand = isRailExpanded;
+      bool shouldShowButton = constraints.maxWidth >= 650;
+
       return Scaffold(
         body: Row(
           children: [
             SafeArea(
-              child: NavigationRail(
-                extended: constrainst.maxWidth >= 750,
-                minExtendedWidth: constrainst.maxWidth / 4.16,
-                destinations: [
-                  NavigationRailDestination(
-                    icon: Icon(Icons.home),
-                    label: Text('Home'),
-                  ),
-                  NavigationRailDestination(
-                    icon: Icon(Icons.music_note),
-                    label: Text('Songs'),
+              child: Column(
+                children: [
+                  // Botón para abrir/cerrar el NavigationRail
+                  if(shouldShowButton)
+                    IconButton(
+                      icon: Icon(isRailExpanded ? Icons.arrow_back : Icons.menu),
+                      onPressed: () {
+                        setState(() {
+                          isRailExpanded = !isRailExpanded; // Alternar el estado
+                        });
+                      },
+                    ),
+                  Expanded(
+                    child: NavigationRail(
+                      extended: shouldExpand,
+                      minExtendedWidth: shouldExpand ? constraints.maxWidth / 4.16 : null,
+                      destinations: const [
+                        NavigationRailDestination(
+                          icon: Icon(Icons.home),
+                          label: Text('Home'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.music_note),
+                          label: Text('Songs'),
+                        ),
+                      ],
+                      selectedIndex: selectedIndex,
+                      onDestinationSelected: (value) {
+                        setState(() {
+                          selectedIndex = value;
+                        });
+                      },
+                    ),
                   ),
                 ],
-                selectedIndex: selectedIndex,
-                onDestinationSelected: (value) {
-                  setState(() {
-                    selectedIndex = value;
-                  });
-                },
               ),
             ),
             Expanded(
@@ -161,13 +193,15 @@ class _MyHomePageState extends State<MyHomePage> {
 }
 
 class SongsPage extends StatelessWidget {
+  const SongsPage({super.key});
+
   @override
   Widget build(BuildContext context) {
     var appState = context.watch<MyAppState>();
     var songs = appState.songs;
 
     if (songs.isEmpty) {
-      return Center(
+      return const Center(
         child: Text('No songs yet'),
       );
     }
@@ -180,7 +214,7 @@ class SongsPage extends StatelessWidget {
         ),
         for (var pair in songs)
           ListTile(
-            leading: Icon(Icons.music_note),
+            leading: const Icon(Icons.music_note),
             title: Text(pair.asLowerCase),
           ),
       ],
@@ -189,11 +223,12 @@ class SongsPage extends StatelessWidget {
 }
 
 class GeneratorPage extends StatelessWidget {
+  const GeneratorPage({super.key});
+
   @override
   Widget build(BuildContext context) {
     var appState = context.watch<MyAppState>();
     var pair = appState.current;
-    var selectedDirectory = appState.selectedDirectory;
     var isMining = appState.isMining;
     var miningProgress = appState.miningProgress;
     var minedSongs = appState.minedSongs;
@@ -212,7 +247,7 @@ class GeneratorPage extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           BigCard(pair: pair),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -221,34 +256,34 @@ class GeneratorPage extends StatelessWidget {
                   appState.toggleSong();
                 },
                 icon: Icon(icon),
-                label: Text('Like'),
+                label: const Text('Like'),
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               ElevatedButton(
                 onPressed: () {
                   appState.getNext();
                 },
-                child: Text('Next'),
+                child: const Text('Next'),
               ),
             ],
           ),
-          SizedBox(height: 20),
+          const SizedBox(height: 20),
           ElevatedButton(
             onPressed: () {
               appState.selectFolderAndMine(); // Seleccionar carpeta y empezar minería
             },
-            child: Text('Select Folder and Start Mining'),
+            child: const Text('Select Folder and Start Mining'),
           ),
           if (isMining) ...[
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             LinearProgressIndicator(value: miningProgress),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             Text('Mining in progress... ${(miningProgress * 100).toStringAsFixed(0)}%'),
           ] else if (hasError) ...[
-            SizedBox(height: 20),
-            Text('Error: $errorMessage', style: TextStyle(color: Colors.red)),
+            const SizedBox(height: 20),
+            Text('Error: $errorMessage', style: const TextStyle(color: Colors.red)),
           ] else if (minedSongs.isNotEmpty) ...[
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             Text('Mining completed! Found ${minedSongs.length} songs.'),
             Expanded(
               child: ListView.builder(
@@ -258,6 +293,7 @@ class GeneratorPage extends StatelessWidget {
                   return ListTile(
                     title: Text(song['title']),
                     subtitle: Text(song['artist']),
+                    // subtitle: Text(song['album']),
                   );
                 },
               ),
