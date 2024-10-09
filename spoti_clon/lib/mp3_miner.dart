@@ -20,7 +20,7 @@ class Mp3Miner {
       var file = files[i];
       if (file is File) {
         // Agregar un retraso para ver el progreso más lentamente
-        await Future.delayed(Duration(milliseconds: 100)); // Retraso de 2 segundos
+        await Future.delayed(const Duration(milliseconds: 100)); // Retraso de 2 segundos
 
         // Ejecutar ffmpeg para extraer los metadatos del archivo MP3
         var result = await Process.run(
