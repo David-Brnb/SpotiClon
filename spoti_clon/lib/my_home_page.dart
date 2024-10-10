@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spoti_clon/performers_page.dart';
 import 'songs_page.dart'; // Archivo separado para manejar la lógica de la página de canciones
 import 'albums_page.dart'; // Archivo separado para manejar la lógica de la página de álbumes
 import 'generator_page.dart'; // Archivo separado para manejar la lógica de la página de inicio
@@ -37,9 +38,10 @@ class _MyHomePageState extends State<MyHomePage> {
         page = const AlbumsPage();
         break;
       case 3:
-        page = const Scaffold(
-          body: Center(child: Text('Page 3')),
-        );
+        page = const PerformersPage();
+        break;
+      case 4:
+        page = const AlbumsPage();
         break;
       default:
         throw UnimplementedError('no widget for $selectedIndex');
@@ -82,6 +84,14 @@ class _MyHomePageState extends State<MyHomePage> {
                         NavigationRailDestination(
                           icon: Icon(Icons.album),
                           label: Text('Albums'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.person),
+                          label: Text('Persons'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.group),
+                          label: Text('Gruops'),
                         ),
                       ],
                       selectedIndex: selectedIndex,

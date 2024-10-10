@@ -214,6 +214,43 @@ class MySQLDatabase {
     return albums; 
   }
 
+  static Future<List<Map<String, dynamic>>> descargaPerformers() async {
+    List<Map<String, dynamic>> performers = [];
+
+    var conn = await MySQLDatabase.getConnection(); // Abre la conexión a la base de datos
+
+    try {
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Consultar todas las filas de la tabla 'rolas' y unirse con la tabla 'performers' y 'albums' para obtener los nombres de los artistas y álbumes
+      var results = await conn.query('''
+        SELECT p.id_performer, p.id_type, p.name, 
+        FROM performers p
+      ''');
+
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Iterar sobre los resultados y agregarlos a la lista de mapas
+      for (var row in results) {
+        Map<String, dynamic> performer = {
+          'id_performer': row['id_performer'],
+          'id_type': row['id_type'],
+          'name': row['name'].toString(), // Nombre del performer
+        };
+
+        performers.add(performer);
+      }
+
+      print('Consulta ejecutada: Resultados obtenidos');
+    } catch (e) {
+      print('Error al ejecutar la consulta: $e');
+    } finally {
+      await conn.close(); // Cerrar la conexión a la base de datos
+    }
+    
+    return performers; 
+  }
+
   // Método para actualizar un registro en la tabla 'rolas'
   static Future<void> actualizarRola(int idRola, int idPerformer, int idAlbum, String title, String artist, String album, int year, String genre, int track) async {
     try {
@@ -255,6 +292,24 @@ class MySQLDatabase {
         UPDATE albums 
         SET name = '${name.replaceAll("'", " ")}', year = $year, path = '$path' 
         WHERE id_album = $idAlbum
+      ''');
+
+      print("Álbum actualizado correctamente");
+      await conn.close(); // Cerrar la conexión después de la actualización
+    } catch (e) {
+      print('Error al actualizar el álbum: $e');
+    }
+  }
+
+  static Future<void> actualizarPerformer(int idPerformer, int idType, String name) async{
+    try {
+      var conn = await getConnection(); // Obtener la conexión a la base de datos
+
+      // Ejecutar el UPDATE
+      await conn.query('''
+        UPDATE performers 
+        SET name = '${name.replaceAll("'", " ")}', id_type = $idType
+        WHERE id_performer = $idPerformer
       ''');
 
       print("Álbum actualizado correctamente");
