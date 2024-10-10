@@ -95,7 +95,9 @@ class MySQLDatabase {
       ''');
 
       // Verificar si la tabla 'types' ya tiene datos
+      await Future.delayed(const Duration(seconds: 1));
       var result = await conn.query('SELECT COUNT(*) as count FROM types');
+      await Future.delayed(const Duration(seconds: 1));
 
       if (result.isNotEmpty) {
         var rowCount = result.first['count'];
@@ -122,4 +124,129 @@ class MySQLDatabase {
       print('Error al crear las tablas: $e');
     }
   }
+
+  static Future<List<Map<String, dynamic>>> descargaRolas() async {
+    List<Map<String, dynamic>> songs = [];
+    var conn = await MySQLDatabase.getConnection(); // Abre la conexión a la base de datos
+
+    try {
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Consultar todas las filas de la tabla 'rolas' y unirse con la tabla 'performers' y 'albums' para obtener los nombres de los artistas y álbumes
+      var results = await conn.query('''
+        SELECT r.id_rola, r.id_performer, r.id_album, r.path, r.title, r.track, r.year as song_year, r.genre, 
+              p.name as artist, s.year as album_year, s.name as album_name
+        FROM rolas r
+        JOIN performers p ON r.id_performer = p.id_performer
+        JOIN albums s ON r.id_album = s.id_album
+      ''');
+
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Iterar sobre los resultados y agregarlos a la lista de mapas
+      for (var row in results) {
+        Map<String, dynamic> song = {
+          'id_rola': row['id_rola'],
+          'id_performer': row['id_performer'],
+          'id_album': row['id_album'],
+          'path': row['path'].toString(), // Asegurarse de que `path` es un string
+          'title': row['title'].toString(), // Asegurarse de que `title` es un string
+          'artist': row['artist'].toString(), // Usar directamente el valor del artista
+          'album': row['album_name'].toString(), // Nombre del álbum
+          'albumYear': row['album_year'].toString(), // Año del álbum
+          'track': row['track'],
+          'year': row['song_year'], // Año de la canción
+          'genre': row['genre'].toString(), // Asegurarse de que `genre` es un string
+        };
+        songs.add(song);
+      }
+
+      print('Consulta ejecutada: Resultados obtenidos');
+    } catch (e) {
+      print('Error al ejecutar la consulta: $e');
+    } finally {
+      await conn.close(); // Cerrar la conexión a la base de datos
+    }
+
+    return songs; // Retornar la lista de canciones descargadas
+  }
+
+
+  static Future<List<Map<String, dynamic>>> descargaAlbums() async {
+    List<Map<String, dynamic>> albums = [];
+
+    var conn = await MySQLDatabase.getConnection(); // Abre la conexión a la base de datos
+
+    try {
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Consultar todas las filas de la tabla 'rolas' y unirse con la tabla 'performers' y 'albums' para obtener los nombres de los artistas y álbumes
+      var results = await conn.query('''
+        SELECT a.id_album, a.path, a.name, a.year, 
+              p.name as artist, s.id_performer
+        FROM albums a
+        JOIN rolas s ON a.id_album = s.id_album
+        JOIN performers p ON s.id_performer = p.id_performer
+      ''');
+
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Iterar sobre los resultados y agregarlos a la lista de mapas
+      for (var row in results) {
+        Map<String, dynamic> album = {
+          'id_album': row['id_album'],
+          'path': row['path'].toString(), // Asegurarse de que `path` es un string
+          'album_name': row['name'].toString(), // Nombre del album
+          'year': row['year'].toString(), // Año del álbum
+          'artist': row['artist'].toString(),
+          'id_performer': row['id_performer'] // Asegurarse de que `genre` es un string
+        };
+        albums.add(album);
+      }
+
+      print('Consulta ejecutada: Resultados obtenidos');
+    } catch (e) {
+      print('Error al ejecutar la consulta: $e');
+    } finally {
+      await conn.close(); // Cerrar la conexión a la base de datos
+    }
+    
+    return albums; 
+  }
+
+  // Método para actualizar un registro en la tabla 'rolas'
+  static Future<void> actualizarRola(int idRola, int idPerformer, int idAlbum, String title, String artist, String album, int year, String genre) async {
+    try {
+      var conn = await getConnection();
+
+      // Ejecutar el UPDATE
+      await conn.query('''
+        UPDATE rolas
+        SET title = '$title', genre = '$genre', year = $year
+        WHERE id_rola = $idRola
+      ''');
+
+      // UPDATE rolas SET title = Hola, genre = jaz, year = 1980 WHERE id_rola = 4
+
+      // Si quieres también actualizar el artista y álbum (suponiendo que tengas relaciones correctas)
+      await conn.query('''
+        UPDATE performers 
+        SET name = '$artist'
+        WHERE id_performer = $idPerformer
+      ''');
+
+      await conn.query('''
+        UPDATE albums 
+        SET name = '$album'
+        WHERE id_album = $idAlbum
+      ''');
+
+      print("Rola actualizada correctamente");
+      await conn.close();
+    } catch (e) {
+      print('Error al actualizar la rola: $e');
+    }
+  }
+
+
 }
