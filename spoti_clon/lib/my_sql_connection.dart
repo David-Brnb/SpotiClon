@@ -214,42 +214,87 @@ class MySQLDatabase {
     return albums; 
   }
 
-  static Future<List<Map<String, dynamic>>> descargaPerformers() async {
+  static Future<List<Map<String, dynamic>>> descargarPerformers() async {
     List<Map<String, dynamic>> performers = [];
 
-    var conn = await MySQLDatabase.getConnection(); // Abre la conexión a la base de datos
+    var conn = await getConnection(); // Abre la conexión a la base de datos
 
     try {
       await Future.delayed(const Duration(milliseconds: 500));
 
-      // Consultar todas las filas de la tabla 'rolas' y unirse con la tabla 'performers' y 'albums' para obtener los nombres de los artistas y álbumes
+      // Consultar todos los performers y sus tipos
       var results = await conn.query('''
-        SELECT p.id_performer, p.id_type, p.name, 
+        SELECT p.id_performer, p.name, p.id_type, t.description as type_description
         FROM performers p
+        JOIN types t ON p.id_type = t.id_type
       ''');
 
       await Future.delayed(const Duration(milliseconds: 500));
 
-      // Iterar sobre los resultados y agregarlos a la lista de mapas
+      // Iterar sobre los resultados y agregarlos a la lista de performers
       for (var row in results) {
         Map<String, dynamic> performer = {
           'id_performer': row['id_performer'],
+          'name': row['name'].toString(),
           'id_type': row['id_type'],
-          'name': row['name'].toString(), // Nombre del performer
+          'type_description': row['type_description'].toString(),
         };
 
         performers.add(performer);
       }
 
-      print('Consulta ejecutada: Resultados obtenidos');
+      print('Consulta de performers ejecutada correctamente');
     } catch (e) {
-      print('Error al ejecutar la consulta: $e');
+      print('Error al ejecutar la consulta de performers: $e');
     } finally {
       await conn.close(); // Cerrar la conexión a la base de datos
     }
-    
-    return performers; 
+
+    return performers; // Retornar la lista de performers descargados
   }
+
+
+  static Future<List<Map<String, dynamic>>> descargarPersona() async {
+    List<Map<String, dynamic>> personas = [];
+
+    var conn = await getConnection(); // Abre la conexión a la base de datos
+
+    try {
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Consultar todas las personas y sus tipos
+      var results = await conn.query('''
+        SELECT p.id_person, p.stage_name, p.real_name, p.birth_date, p.death_date
+        FROM persons p
+      ''');
+
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Iterar sobre los resultados y agregarlos a la lista de persona
+      for (var row in results) {
+        Map<String, dynamic> person = {
+          'id_person': row['id_person'],
+          'stage_name': row['stage_name'].toString(),
+          'real_name': row['real_name'].toString(),
+          'birth_date': row['birth_date'].toString(),
+          'death_date': row['death_date'].toString(),
+        };
+
+        personas.add(person);
+      }
+
+      print('Consulta de personas ejecutada correctamente');
+    } catch (e) {
+      print('Error al ejecutar la consulta de personas: $e');
+    } finally {
+      await conn.close(); // Cerrar la conexión a la base de datos
+    }
+
+    return personas; // Retornar la lista de personas descargados
+  }
+
+
+
 
   // Método para actualizar un registro en la tabla 'rolas'
   static Future<void> actualizarRola(int idRola, int idPerformer, int idAlbum, String title, String artist, String album, int year, String genre, int track) async {
@@ -301,23 +346,101 @@ class MySQLDatabase {
     }
   }
 
-  static Future<void> actualizarPerformer(int idPerformer, int idType, String name) async{
+  static Future<void> actualizarPerformer(int idPerformer, int nuevoIdType, String name) async {
     try {
       var conn = await getConnection(); // Obtener la conexión a la base de datos
 
-      // Ejecutar el UPDATE
-      await conn.query('''
-        UPDATE performers 
-        SET name = '${name.replaceAll("'", " ")}', id_type = $idType
-        WHERE id_performer = $idPerformer
-      ''');
+      await Future.delayed(const Duration(milliseconds: 500));
+      // Primero, obtenemos el `id_type` actual del performer
+      var result = await conn.query('''
+        SELECT id_type FROM performers WHERE id_performer = ?
+      ''', [idPerformer]);
+      await Future.delayed(const Duration(milliseconds: 500));
 
-      print("Álbum actualizado correctamente");
+      if (result.isNotEmpty) {
+        int actualIdType = result.first['id_type'];
+
+        // Si el tipo cambia, eliminamos de las tablas `persons` o `groups` según corresponda
+        if (actualIdType != nuevoIdType) {
+          if (nuevoIdType == 0) {
+            // Si el tipo cambia a 0 (personas), eliminamos de `groups`
+            await conn.query('''
+              DELETE FROM `groups`
+              WHERE name = '${name.replaceAll("'", " ")}'
+            ''');
+            print("Grupo eliminado: $name");
+
+            // Obtener el valor máximo actual de `id_person` en la tabla 'persons'
+            var maxIdResult = await conn.query('SELECT IFNULL(MAX(id_person), 0) as max_id FROM persons');
+            int newPersonId = maxIdResult.first['max_id'] + 1;
+            // Insertar un nuevo registro en la tabla 'persons'
+            await conn.query('''
+              INSERT INTO persons (id_person, stage_name, real_name, birth_date, death_date) 
+              VALUES ($newPersonId,'${name.replaceAll("'", " ")}', 'Unknown', 'Unknown', 'Unknown')
+            ''');
+
+            print("Persona insertada: $name");
+
+
+          } else if (nuevoIdType == 1) {
+            // Si el tipo cambia a 1 (grupo), eliminamos de `persons`
+            await conn.query('''
+              DELETE FROM persons
+              WHERE stage_name = '${name.replaceAll("'", " ")}'
+            ''');
+            print("Persona eliminada: $name");
+
+            // Insertar un nuevo registro en la tabla 'groups'
+            await conn.query('''
+              INSERT INTO `groups` (name, start_date, end_date) 
+              VALUES ('${name.replaceAll("'", " ")}', 'Unknown', 'Unknown')
+            ''');
+            print("Grupo insertado: $name");
+          }
+
+          // Actualizamos el `id_type` y el nombre del performer
+          await conn.query('''
+            UPDATE performers 
+            SET name = '${name.replaceAll("'", " ")}', id_type = $nuevoIdType
+            WHERE id_performer = $idPerformer
+          ''');
+
+        } else {
+          // Ejecutar el UPDATE solo del nombre
+          await conn.query('''
+            UPDATE performers 
+            SET name = '${name.replaceAll("'", " ")}'
+            WHERE id_performer = $idPerformer
+          ''');
+        }
+
+        print("Performer actualizado correctamente con nuevo id_type");
+      }
+
       await conn.close(); // Cerrar la conexión después de la actualización
     } catch (e) {
-      print('Error al actualizar el álbum: $e');
+      print('Error al actualizar el performer con nuevo id_type: $e');
     }
   }
+
+  static Future<void> actualizarPersona(int idPerson, String stageName, String realName, String birthDate, String deathDate) async {
+    var conn = await getConnection();
+
+    // Actualizar la persona
+    await conn.query('''
+      UPDATE persons SET stage_name = '${stageName.replaceAll("'", " ")}', 
+      real_name = '${realName.replaceAll("'", " ")}', birth_date = '${birthDate.replaceAll("'", " ")}',
+      death_date = '${deathDate.replaceAll("'", " ")}' 
+      WHERE id_person = $idPerson
+    '''  
+    );
+
+    print('Persona actualizada con id: $idPerson');
+    await conn.close();
+  }
+
+
+
 
 
 
