@@ -215,18 +215,16 @@ class MySQLDatabase {
   }
 
   // Método para actualizar un registro en la tabla 'rolas'
-  static Future<void> actualizarRola(int idRola, int idPerformer, int idAlbum, String title, String artist, String album, int year, String genre) async {
+  static Future<void> actualizarRola(int idRola, int idPerformer, int idAlbum, String title, String artist, String album, int year, String genre, int track) async {
     try {
       var conn = await getConnection();
 
       // Ejecutar el UPDATE
       await conn.query('''
         UPDATE rolas
-        SET title = '$title', genre = '$genre', year = $year
+        SET title = '$title', genre = '$genre', year = $year, track = $track
         WHERE id_rola = $idRola
       ''');
-
-      // UPDATE rolas SET title = Hola, genre = jaz, year = 1980 WHERE id_rola = 4
 
       // Si quieres también actualizar el artista y álbum (suponiendo que tengas relaciones correctas)
       await conn.query('''
@@ -247,6 +245,25 @@ class MySQLDatabase {
       print('Error al actualizar la rola: $e');
     }
   }
+
+  static Future<void> actualizarAlbum(int idAlbum, String name, int year, String path) async {
+    try {
+      var conn = await getConnection(); // Obtener la conexión a la base de datos
+
+      // Ejecutar el UPDATE
+      await conn.query('''
+        UPDATE albums 
+        SET name = '?', year = ?, path = '?' 
+        WHERE id_album = ?
+      ''', [name, year, path, idAlbum]);
+
+      print("Álbum actualizado correctamente");
+      await conn.close(); // Cerrar la conexión después de la actualización
+    } catch (e) {
+      print('Error al actualizar el álbum: $e');
+    }
+  }
+
 
 
 }
