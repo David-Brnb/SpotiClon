@@ -214,5 +214,39 @@ class MySQLDatabase {
     return albums; 
   }
 
+  // Método para actualizar un registro en la tabla 'rolas'
+  static Future<void> actualizarRola(int idRola, int idPerformer, int idAlbum, String title, String artist, String album, int year, String genre) async {
+    try {
+      var conn = await getConnection();
+
+      // Ejecutar el UPDATE
+      await conn.query('''
+        UPDATE rolas
+        SET title = '$title', genre = '$genre', year = $year
+        WHERE id_rola = $idRola
+      ''');
+
+      // UPDATE rolas SET title = Hola, genre = jaz, year = 1980 WHERE id_rola = 4
+
+      // Si quieres también actualizar el artista y álbum (suponiendo que tengas relaciones correctas)
+      await conn.query('''
+        UPDATE performers 
+        SET name = '$artist'
+        WHERE id_performer = $idPerformer
+      ''');
+
+      await conn.query('''
+        UPDATE albums 
+        SET name = '$album'
+        WHERE id_album = $idAlbum
+      ''');
+
+      print("Rola actualizada correctamente");
+      await conn.close();
+    } catch (e) {
+      print('Error al actualizar la rola: $e');
+    }
+  }
+
 
 }
