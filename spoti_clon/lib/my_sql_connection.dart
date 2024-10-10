@@ -131,12 +131,16 @@ class MySQLDatabase {
 
     try {
       await Future.delayed(const Duration(milliseconds: 500));
-      // Consultar todas las filas de la tabla 'rolas' y unirse con la tabla 'performers' para obtener los nombres de los artistas
+
+      // Consultar todas las filas de la tabla 'rolas' y unirse con la tabla 'performers' y 'albums' para obtener los nombres de los artistas y álbumes
       var results = await conn.query('''
-        SELECT r.id_rola, r.id_performer, r.id_album, r.path, r.title, r.track, r.year, r.genre, p.name as artist
+        SELECT r.id_rola, r.id_performer, r.id_album, r.path, r.title, r.track, r.year as song_year, r.genre, 
+              p.name as artist, s.year as album_year, s.name as album_name
         FROM rolas r
         JOIN performers p ON r.id_performer = p.id_performer
+        JOIN albums s ON r.id_album = s.id_album
       ''');
+
       await Future.delayed(const Duration(milliseconds: 500));
 
       // Iterar sobre los resultados y agregarlos a la lista de mapas
@@ -148,15 +152,16 @@ class MySQLDatabase {
           'path': row['path'].toString(), // Asegurarse de que `path` es un string
           'title': row['title'].toString(), // Asegurarse de que `title` es un string
           'artist': row['artist'].toString(), // Usar directamente el valor del artista
+          'album': row['album_name'].toString(), // Nombre del álbum
+          'albumYear': row['album_year'].toString(), // Año del álbum
           'track': row['track'],
-          'year': row['year'],
+          'year': row['song_year'], // Año de la canción
           'genre': row['genre'].toString(), // Asegurarse de que `genre` es un string
         };
         songs.add(song);
       }
 
       print('Consulta ejecutada: Resultados obtenidos');
-      print(songs);
     } catch (e) {
       print('Error al ejecutar la consulta: $e');
     } finally {
@@ -164,6 +169,49 @@ class MySQLDatabase {
     }
 
     return songs; // Retornar la lista de canciones descargadas
+  }
+
+
+  static Future<List<Map<String, dynamic>>> descargaAlbums() async {
+    List<Map<String, dynamic>> albums = [];
+
+    var conn = await MySQLDatabase.getConnection(); // Abre la conexión a la base de datos
+
+    try {
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Consultar todas las filas de la tabla 'rolas' y unirse con la tabla 'performers' y 'albums' para obtener los nombres de los artistas y álbumes
+      var results = await conn.query('''
+        SELECT a.id_album, a.path, a.name, a.year, 
+              p.name as artist, s.id_performer
+        FROM albums a
+        JOIN rolas s ON a.id_album = s.id_album
+        JOIN performers p ON s.id_performer = p.id_performer
+      ''');
+
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Iterar sobre los resultados y agregarlos a la lista de mapas
+      for (var row in results) {
+        Map<String, dynamic> album = {
+          'id_album': row['id_album'],
+          'path': row['path'].toString(), // Asegurarse de que `path` es un string
+          'album_name': row['name'].toString(), // Nombre del album
+          'year': row['year'].toString(), // Año del álbum
+          'artist': row['artist'].toString(),
+          'id_performer': row['id_performer'] // Asegurarse de que `genre` es un string
+        };
+        albums.add(album);
+      }
+
+      print('Consulta ejecutada: Resultados obtenidos');
+    } catch (e) {
+      print('Error al ejecutar la consulta: $e');
+    } finally {
+      await conn.close(); // Cerrar la conexión a la base de datos
+    }
+    
+    return albums; 
   }
 
 

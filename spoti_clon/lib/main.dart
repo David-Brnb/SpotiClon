@@ -31,7 +31,7 @@ class MyApp extends StatelessWidget {
 
 class SongManager {
   static final SongManager _instance = SongManager._internal();
-  Future<List<Map<String, dynamic>>>? futureSongs;
+  Future<List<Map<String, dynamic>>>? data;
 
   factory SongManager() {
     return _instance;
@@ -40,7 +40,11 @@ class SongManager {
   SongManager._internal();
 
   void refreshSongs() {
-    futureSongs = MySQLDatabase.descargaRolas();
+    data = MySQLDatabase.descargaRolas();
+  }
+
+  void refreshAlbums(){
+    data = MySQLDatabase.descargaAlbums();
   }
 }
 
@@ -147,9 +151,7 @@ class _MyHomePageState extends State<MyHomePage> {
         page = const SongsPage();
         break;
       case 2: 
-        page = const Scaffold(
-          body: Center(child: Text('Page 2')),
-        );
+        page = const AlbumsPage();
         break;
       case 3: 
         page = const Scaffold(
@@ -241,7 +243,9 @@ class _SongsPageState extends State<SongsPage> {
   void initState() {
     super.initState();
     // Descargar las canciones cuando se inicializa la página
-    futureSongs = MySQLDatabase.descargaRolas();
+    var songManager = SongManager();
+    songManager.refreshSongs();
+    futureSongs = songManager.data ?? Future.value([]);
   }
 
   @override
@@ -309,7 +313,7 @@ class _SongsPageState extends State<SongsPage> {
                 title: const Text('View Details'),
                 onTap: () {
                   Navigator.pop(context); // Cerrar el menú
-                  // Lógica para mostrar detalles de la canción
+                  _showDetailsDialog(context, song);
                 },
               ),
             ],
@@ -318,6 +322,80 @@ class _SongsPageState extends State<SongsPage> {
       },
     );
   }
+
+  void _showDetailsDialog(BuildContext context, Map<String, dynamic> song) {
+    bool isEditing = false; // Controla si el usuario está en modo de edición
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return AlertDialog(
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Song Details'),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Cerrar el diálogo
+                    },
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    TextFormField(
+                      initialValue: song['title'],
+                      readOnly: !isEditing, // Si no está en modo de edición, es solo lectura
+                      decoration: InputDecoration(labelText: 'Title'),
+                    ),
+                    TextFormField(
+                      initialValue: song['artist'],
+                      readOnly: !isEditing,
+                      decoration: InputDecoration(labelText: 'Artist'),
+                    ),
+                    TextFormField(
+                      initialValue: song['album'] ?? 'Unknown Album',
+                      readOnly: !isEditing,
+                      decoration: InputDecoration(labelText: 'Album'),
+                    ),
+                    TextFormField(
+                      initialValue: song['year'].toString(),
+                      readOnly: !isEditing,
+                      decoration: InputDecoration(labelText: 'Year'),
+                    ),
+                    TextFormField(
+                      initialValue: song['genre'] ?? 'Unknown Genre',
+                      readOnly: !isEditing,
+                      decoration: InputDecoration(labelText: 'Genre'),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                ElevatedButton(
+                  onPressed: () {
+                    if (isEditing) {
+                      // Guardar los cambios
+                      // Lógica para guardar los cambios
+                    }
+                    setState(() {
+                      isEditing = !isEditing; // Cambia entre editar y visualizar
+                    });
+                  },
+                  child: Text(isEditing ? 'Guardar' : 'Editar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
 }
 
 class GeneratorPage extends StatelessWidget {
@@ -417,6 +495,103 @@ class BigCard extends StatelessWidget {
           semanticsLabel: "${pair.first} ${pair.second}",
         ),
       ),
+    );
+  }
+
+}
+
+class AlbumsPage extends StatefulWidget {
+  const AlbumsPage({super.key});
+
+  @override
+  State<AlbumsPage> createState() => _AlbumsPageState();
+}
+
+class _AlbumsPageState extends State<AlbumsPage> {
+  late Future<List<Map<String, dynamic>>> albums;
+
+  @override
+  void initState() {
+    super.initState();
+    // Descargar las canciones cuando se inicializa la página
+    var songManager = SongManager();
+    songManager.refreshAlbums();
+    albums = songManager.data ?? Future.value([]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: albums, // Llamada asincrónica para obtener las canciones
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          // Mostrar un indicador de carga mientras se descargan las canciones
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          // Mostrar un mensaje de error si algo salió mal
+          return Center(child: Text('Error: ${snapshot.error}'));
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          // Mostrar un mensaje si no hay canciones
+          return const Center(child: Text('No songs yet'));
+        }
+
+        // Mostrar la lista de canciones si todo está bien
+        var albums = snapshot.data!;
+
+        return ListView(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text('You have ${albums.length} albums: '),
+            ),
+            for (var album in albums)
+              ListTile(
+                leading: const Icon(Icons.music_note),
+                title: Text(album['album_name'] ?? 'Unknown Title'),
+                subtitle: Text(album['artist'] ?? 'Unknown Artist'),
+                onTap: () {
+                  // Navigator.pop(context);
+                  // Al presionar, mostramos el menú o bottom sheet
+                  _showAlbumMenu(context, album);
+                },
+                
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Función para mostrar un menú o bottom sheet al presionar una canción
+  void _showAlbumMenu(BuildContext context, Map<String, dynamic> song) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.add),
+                title: const Text('Add to Favorites'),
+                onTap: () {
+                  Navigator.pop(context); // Cerrar el menú
+                  // Lógica para agregar el album a la playlist
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.info),
+                title: const Text('View Details'),
+                onTap: () {
+                  Navigator.pop(context); // Cerrar el menú
+                  // Lógica para mostrar detalles del album
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
