@@ -253,9 +253,9 @@ class MySQLDatabase {
       // Ejecutar el UPDATE
       await conn.query('''
         UPDATE albums 
-        SET name = '?', year = ?, path = '?' 
-        WHERE id_album = ?
-      ''', [name, year, path, idAlbum]);
+        SET name = '${name.replaceAll("'", " ")}', year = $year, path = '$path' 
+        WHERE id_album = $idAlbum
+      ''');
 
       print("Álbum actualizado correctamente");
       await conn.close(); // Cerrar la conexión después de la actualización

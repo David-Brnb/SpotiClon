@@ -15,9 +15,7 @@ class _SongsPageState extends State<SongsPage> {
   @override
   void initState() {
     super.initState();
-    var songManager = SongManager();
-    songManager.refreshSongs();
-    futureSongs = songManager.data ?? Future.value([]);
+    refreshSongs();
   }
 
   @override
