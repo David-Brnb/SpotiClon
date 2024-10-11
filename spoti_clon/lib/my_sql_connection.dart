@@ -17,6 +17,9 @@ class MySQLDatabase {
   static Future<void> createTables() async {
     try {
       var conn = await getConnection();
+      /*
+      crear base
+      */
 
       // Crear la tabla 'types'
       await conn.query('''
@@ -182,8 +185,7 @@ class MySQLDatabase {
 
       // Consultar todas las filas de la tabla 'rolas' y unirse con la tabla 'performers' y 'albums' para obtener los nombres de los artistas y álbumes
       var results = await conn.query('''
-        SELECT a.id_album, a.path, a.name, a.year, 
-              p.name as artist, s.id_performer
+        SELECT DISTINCT a.id_album, a.path, a.name, a.year, p.name as artist, s.id_performer
         FROM albums a
         JOIN rolas s ON a.id_album = s.id_album
         JOIN performers p ON s.id_performer = p.id_performer
@@ -439,7 +441,98 @@ class MySQLDatabase {
     await conn.close();
   }
 
+  Future<List<Map<String, dynamic>>> buscarSongs(String input) async {
+    var conn = await MySQLDatabase.getConnection();
 
+    try {
+      // Iniciar el query base
+      String query = '''
+        SELECT r.id_rola, r.title, p.name as performer, a.name as album, r.year, r.genre, r.track
+        FROM rolas r
+        JOIN performers p ON r.id_performer = p.id_performer
+        JOIN albums a ON r.id_album = a.id_album
+      ''';
+
+      // Crear una lista para almacenar las condiciones
+      List<String> conditions = [];
+
+      // Crear un mapa que asocie banderas con las columnas de la base de datos
+      Map<String, String> flagToColumn = {
+        'p': 'p.name',    // Performer
+        't': 'r.title',   // Title
+        'a': 'a.name',    // Album
+        'y': 'r.year',    // Year
+        'g': 'r.genre',   // Genre
+        'n': 'r.track',   // Track
+      };
+
+      // Separar la entrada del usuario en tokens (asumiendo que usa espacios para separar banderas, relaciones y valores)
+      List<String> tokens = input.split(' ');
+
+      String? currentFlag;
+      String? currentRelational;
+      String? currentValue;
+
+      // Procesar cada token de la entrada del usuario
+      for (String token in tokens) {
+        if (token.startsWith('-')) {
+          // Es una bandera (por ejemplo, -p, -t, etc.)
+          currentFlag = token.substring(1); // Remover el guión
+        } else if (token.toLowerCase() == 'and' || token.toLowerCase() == 'or') {
+          // Es un operador relacional
+          currentRelational = token.toUpperCase();
+        } else {
+          // Es un valor de búsqueda
+          currentValue = token;
+
+          // Solo armar la condición si hay una bandera válida
+          if (currentFlag != null && currentValue != null) {
+            String column = flagToColumn[currentFlag] ?? '';
+            if (column.isNotEmpty) {
+              String condition = "$column LIKE '%$currentValue%'";
+              conditions.add(condition);
+            }
+
+            // Resetear el flag para la siguiente búsqueda
+            currentFlag = null;
+            currentValue = null;
+          }
+        }
+      }
+
+      // Unir todas las condiciones usando el operador relacional adecuado
+      String whereClause = conditions.isNotEmpty ? 'WHERE ' + conditions.join(currentRelational != null ? ' $currentRelational ' : ' AND ') : '';
+
+      // Armar el query final
+      query += whereClause;
+
+      print('Query generado: $query');
+
+      // Ejecutar el query
+      var results = await conn.query(query);
+
+      // Convertir los resultados en una lista de mapas
+      List<Map<String, dynamic>> songs = [];
+      for (var row in results) {
+        songs.add({
+          'id_rola': row['id_rola'],
+          'title': row['title'],
+          'performer': row['performer'],
+          'album': row['album'],
+          'year': row['year'],
+          'genre': row['genre'],
+          'track': row['track'],
+        });
+      }
+
+      return songs;
+    } catch (e) {
+      print('Error al ejecutar la consulta de búsqueda: $e');
+      return [];
+    } finally {
+      await conn.close();
+    }
+  }
 
 
 

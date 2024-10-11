@@ -11,6 +11,7 @@ class SongsPage extends StatefulWidget {
 
 class _SongsPageState extends State<SongsPage> {
   late Future<List<Map<String, dynamic>>> futureSongs;
+  TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
@@ -20,29 +21,56 @@ class _SongsPageState extends State<SongsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: futureSongs,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('No songs yet'));
-        }
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: TextField(
+            controller: searchController, // Controlador del buscador
+            decoration: InputDecoration(
+              labelText: 'Search',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onChanged: (value) {
+              // Aquí se puede implementar la lógica para filtrar las canciones
+              // Por ahora no hará nada
+              print("Texto de búsqueda: $value");
+            },
+            onSubmitted: (value){
+              print("Texto de búsqueda final: $value");
+            },
+          ),
+        ),
+        Expanded(
+          child: FutureBuilder<List<Map<String, dynamic>>>(
+            future: futureSongs,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Center(child: Text('No songs yet'));
+              }
 
-        var songs = snapshot.data!;
-        return ListView(
-          children: songs.map((song) {
-            return ListTile(
-              leading: const Icon(Icons.music_note),
-              title: Text(song['title'] ?? 'Unknown Title'),
-              subtitle: Text(song['artist'] ?? 'Unknown Artist'),
-              onTap: () => _showSongMenu(context, song),
-            );
-          }).toList(),
-        );
-      },
+              var songs = snapshot.data!;
+              return ListView(
+                children: songs.map((song) {
+                  return ListTile(
+                    leading: const Icon(Icons.music_note),
+                    title: Text(song['title'] ?? 'Unknown Title'),
+                    subtitle: Text(song['artist'] ?? 'Unknown Artist'),
+                    onTap: () => _showSongMenu(context, song),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 

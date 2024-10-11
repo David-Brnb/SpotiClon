@@ -86,9 +86,9 @@ class BigCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(30.0),
         child: Text(
-          pair.asLowerCase,
+          "Spoti-Clon",
           style: style,
-          semanticsLabel: "${pair.first} ${pair.second}",
+          semanticsLabel: "SpotiClon",
         ),
       ),
     );
