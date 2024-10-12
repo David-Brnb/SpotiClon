@@ -1,14 +1,15 @@
 import 'package:mysql1/mysql1.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class MySQLDatabase {
   // Configura los parámetros de conexión
   static Future<MySqlConnection> getConnection() async {
     var settings = ConnectionSettings(
-      host: 'localhost',
-      port: 3306, // Puerto de MySQL, normalmente es 3306
-      user: 'root', // Usuario de la base de datos
-      password: '007David', // Contraseña del usuario
-      db: 'musica', // Nombre de la base de datos
+      host: dotenv.env['DB_HOST']!, // Cargar el host desde .env
+      port: int.parse(dotenv.env['DB_PORT']!), // Cargar el puerto desde .env
+      user: dotenv.env['DB_USER']!, // Cargar el usuario desde .env
+      password: dotenv.env['DB_PASSWORD']!, // Cargar la contraseña desde .env
+      db: dotenv.env['DB_NAME']!, // Cargar el nombre de la base de datos desde .env
     );
     return await MySqlConnection.connect(settings);
   }

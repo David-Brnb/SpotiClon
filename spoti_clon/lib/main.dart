@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'my_home_page.dart'; // Página principal de la app
-import 'my_app_state.dart'; // Maneja el estado global de la app
+import 'my_home_page.dart'; 
+import 'my_app_state.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; 
+import 'dart:io';
 
-void main() {
+void main() async {
+  String path = Directory.current.path;  // Obtiene la ruta absoluta de la carpeta raíz del proyecto
+  await dotenv.load(fileName: "$path/.env");  // Usa la ruta absoluta al archivo .env
   runApp(const MyApp());
 }
 
