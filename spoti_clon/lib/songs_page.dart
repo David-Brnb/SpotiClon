@@ -34,12 +34,10 @@ class _SongsPageState extends State<SongsPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            onChanged: (value) {
-              // Aquí se puede implementar la lógica para filtrar las canciones
-              // Por ahora no hará nada
-              print("Texto de búsqueda: $value");
-            },
             onSubmitted: (value){
+              setState(() {
+                futureSongs = MySQLDatabase.buscarSongs(value);
+              });
               print("Texto de búsqueda final: $value");
             },
           ),

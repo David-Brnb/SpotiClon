@@ -441,16 +441,17 @@ class MySQLDatabase {
     await conn.close();
   }
 
-  Future<List<Map<String, dynamic>>> buscarSongs(String input) async {
+  static Future<List<Map<String, dynamic>>> buscarSongs(String input) async {
     var conn = await MySQLDatabase.getConnection();
 
     try {
-      // Iniciar el query base
+      // Query base
       String query = '''
-        SELECT r.id_rola, r.title, p.name as performer, a.name as album, r.year, r.genre, r.track
+        SELECT r.id_rola, r.id_performer, r.id_album, r.path, r.title, r.track, r.year as song_year, r.genre, 
+              p.name as artist, s.year as album_year, s.name as album_name
         FROM rolas r
         JOIN performers p ON r.id_performer = p.id_performer
-        JOIN albums a ON r.id_album = a.id_album
+        JOIN albums s ON r.id_album = s.id_album
       ''';
 
       // Crear una lista para almacenar las condiciones
@@ -466,64 +467,96 @@ class MySQLDatabase {
         'n': 'r.track',   // Track
       };
 
-      // Separar la entrada del usuario en tokens (asumiendo que usa espacios para separar banderas, relaciones y valores)
-      List<String> tokens = input.split(' ');
+      // Usar una expresión regular para soportar términos entre comillas
+      RegExp regExp = RegExp(r'(-[a-z])|(".*?"|\S+)');
+      Iterable<Match> matches = regExp.allMatches(input);
 
-      String? currentFlag;
-      String? currentRelational;
-      String? currentValue;
+      String? currentFlag;  // Para almacenar la bandera actual
+      String? currentRelational = 'AND';  // Por defecto, usar AND si no se especifica
+      String? currentValue;  // Para almacenar el token (valor de búsqueda)
 
-      // Procesar cada token de la entrada del usuario
-      for (String token in tokens) {
+      // Procesar las coincidencias encontradas
+      for (var match in matches) {
+        String token = match.group(0)!;
+
         if (token.startsWith('-')) {
           // Es una bandera (por ejemplo, -p, -t, etc.)
-          currentFlag = token.substring(1); // Remover el guión
+          currentFlag = token.substring(1);  // Remover el guion
         } else if (token.toLowerCase() == 'and' || token.toLowerCase() == 'or') {
-          // Es un operador relacional
+          // Es un operador relacional, lo guardamos
+          if(currentFlag != null){
+            conditions.clear();
+            break;
+          }
+
           currentRelational = token.toUpperCase();
         } else {
-          // Es un valor de búsqueda
-          currentValue = token;
+          // Es un valor de búsqueda (token)
+          currentValue = token.replaceAll('"', '');  // Remover las comillas si están presentes
 
-          // Solo armar la condición si hay una bandera válida
+          // Si hay una bandera y un valor, generar la condición
           if (currentFlag != null && currentValue != null) {
             String column = flagToColumn[currentFlag] ?? '';
+
             if (column.isNotEmpty) {
-              String condition = "$column LIKE '%$currentValue%'";
+              String condition = "$column LIKE '$currentValue'";
+
+              // Agregar la condición y el operador relacional anterior
+              if (conditions.isNotEmpty) {
+                conditions.add(currentRelational ?? "AND");
+              }
               conditions.add(condition);
+
+              // Resetear la bandera y valor después de usarlos
+              currentFlag = null;
+              currentValue = null;
             }
 
-            // Resetear el flag para la siguiente búsqueda
-            currentFlag = null;
-            currentValue = null;
+          } else {
+            conditions.clear();
+            break;
           }
-        }
+
+        } 
       }
 
-      // Unir todas las condiciones usando el operador relacional adecuado
-      String whereClause = conditions.isNotEmpty ? 'WHERE ' + conditions.join(currentRelational != null ? ' $currentRelational ' : ' AND ') : '';
+      String lastToken = matches.last.group(0)!;
+      if (lastToken.startsWith('-') || lastToken.toLowerCase() == 'and' || lastToken.toLowerCase() == 'or') {
+        print("Error: El último token no es un valor válido, es una bandera o un operador relacional.");
+        conditions.clear(); // Limpiar las condiciones y no realizar el query
+      }
 
-      // Armar el query final
-      query += whereClause;
 
-      print('Query generado: $query');
-
-      // Ejecutar el query
-      var results = await conn.query(query);
 
       // Convertir los resultados en una lista de mapas
       List<Map<String, dynamic>> songs = [];
-      for (var row in results) {
-        songs.add({
-          'id_rola': row['id_rola'],
-          'title': row['title'],
-          'performer': row['performer'],
-          'album': row['album'],
-          'year': row['year'],
-          'genre': row['genre'],
-          'track': row['track'],
-        });
+
+      if(conditions.isNotEmpty || input == ""){
+        String whereClause = 'WHERE ' + conditions.join(' ');
+        if(input!="") query += whereClause;
+        await Future.delayed(const Duration(milliseconds: 500));
+        var results = await conn.query(query);
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        for (var row in results) {
+          songs.add({
+            'id_rola': row['id_rola'],
+            'id_performer': row['id_performer'],
+            'id_album': row['id_album'],
+            'path': row['path'].toString(), // Asegurarse de que `path` es un string
+            'title': row['title'].toString(), // Asegurarse de que `title` es un string
+            'artist': row['artist'].toString(), // Usar directamente el valor del artista
+            'album': row['album_name'].toString(), // Nombre del álbum
+            'albumYear': row['album_year'].toString(), // Año del álbum
+            'track': row['track'],
+            'year': row['song_year'], // Año de la canción
+            'genre': row['genre'].toString(), 
+          });
+        }
       }
+
+      print('Query generado: $query\n');
+      print("Cantidad encontrada: ${songs.length}");
 
       return songs;
     } catch (e) {
@@ -533,6 +566,8 @@ class MySQLDatabase {
       await conn.close();
     }
   }
+
+
 
 
 
