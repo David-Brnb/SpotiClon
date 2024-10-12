@@ -17,4 +17,12 @@ class SongManager {
   void refreshAlbums(){
     data = MySQLDatabase.descargaAlbums();
   }
+
+  void refreshPerformers(){
+    data = MySQLDatabase.descargarPerformers();
+  }
+
+  void refreshPersons(){
+    data = MySQLDatabase.descargarPersona();
+  }
 }

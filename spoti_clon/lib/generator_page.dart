@@ -1,9 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:mysql1/mysql1.dart';
 import 'package:provider/provider.dart';
+import 'package:spoti_clon/my_sql_connection.dart';
 import 'my_app_state.dart'; // Asegúrate de tener la lógica de estado en este archivo
-
-class GeneratorPage extends StatelessWidget {
+class GeneratorPage extends StatefulWidget {
   const GeneratorPage({super.key});
+
+  @override
+  State<GeneratorPage> createState() => _GeneratorPageState();
+}
+
+class _GeneratorPageState extends State<GeneratorPage> {
+  late Future<List<Map<String, dynamic>>> futureSongs;
+  TextEditingController searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    MySQLDatabase.createTables();
+  }
 
   @override
   Widget build(BuildContext context) {

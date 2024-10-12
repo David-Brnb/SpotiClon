@@ -2,43 +2,56 @@ import 'package:flutter/material.dart';
 import 'song_manager.dart';
 import 'my_sql_connection.dart'; // Asegúrate de importar la lógica de la base de datos
 
-class AlbumsPage extends StatefulWidget {
-  const AlbumsPage({super.key});
+class PerformersPage extends StatefulWidget {
+  const PerformersPage({super.key});
 
   @override
-  State<AlbumsPage> createState() => _AlbumsPageState();
+  State<PerformersPage> createState() => _PerformersPageState();
 }
 
-class _AlbumsPageState extends State<AlbumsPage> {
-  late Future<List<Map<String, dynamic>>> futureAlbums;
+class _PerformersPageState extends State<PerformersPage> {
+  late Future<List<Map<String, dynamic>>> futurePerformers;
 
   @override
   void initState() {
     super.initState();
-    refreshAlbums();
+    refreshPerformers();
   }
-
+  
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<Map<String, dynamic>>>(
-      future: futureAlbums,
+      future: futurePerformers,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         } else if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('No albums yet'));
+          return const Center(child: Text('No performers yet'));
         }
 
-        var albums = snapshot.data!;
+        var performers = snapshot.data!;
+        var type = "";
+
+  
         return ListView(
-          children: albums.map((album) {
+          children: performers.map((performer) {
+            if(performer['id_type'] == 0){
+              type = "Person";
+
+            } else if(performer['id_type'] == 1){
+              type = "Group";
+              
+            } else {
+              type = "Unknown";
+
+            }
             return ListTile(
-              leading: const Icon(Icons.album),
-              title: Text(album['album_name'] ?? 'Unknown Album'),
-              subtitle: Text(album['artist'] ?? 'Unknown Artist'),
-              onTap: () => _showAlbumDetailsDialog(context, album),
+              leading: const Icon(Icons.mic_external_on_rounded),
+              title: Text(performer['name'] ?? 'Unknown performer'),
+              subtitle: Text(type),
+              onTap: () => _showPerformerDetailsDialog(context, performer),
             );
           }).toList(),
         );
@@ -47,13 +60,24 @@ class _AlbumsPageState extends State<AlbumsPage> {
   }
 
   // Método para mostrar el diálogo de detalles de un álbum
-  void _showAlbumDetailsDialog(BuildContext context, Map<String, dynamic> album) {
+  void _showPerformerDetailsDialog(BuildContext context, Map<String, dynamic> performer) {
     bool isEditing = false;
 
     // Creamos controladores para cada campo que queremos editar
-    TextEditingController nameController = TextEditingController(text: album['album_name']);
-    TextEditingController yearController = TextEditingController(text: album['year'].toString());
-    TextEditingController pathController = TextEditingController(text: album['path']);
+    TextEditingController nameController = TextEditingController(text: performer['name']);
+    var type = "";
+
+    if(performer['id_type'] == 0){
+      type = "Person";
+
+    } else if(performer['id_type'] == 1){
+      type = "Group";
+      
+    } else {
+      type = "Unknown";
+
+    }
+    TextEditingController typeController = TextEditingController(text: type);
 
     showDialog(
       context: context,
@@ -64,7 +88,7 @@ class _AlbumsPageState extends State<AlbumsPage> {
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Album Details'),
+                  const Text('Performer Details'),
                   IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: () {
@@ -79,18 +103,12 @@ class _AlbumsPageState extends State<AlbumsPage> {
                     TextFormField(
                       controller: nameController,
                       readOnly: !isEditing,
-                      decoration: const InputDecoration(labelText: 'Album Name'),
+                      decoration: const InputDecoration(labelText: 'Performer Name'),
                     ),
                     TextFormField(
-                      controller: yearController,
+                      controller: typeController,
                       readOnly: !isEditing,
-                      decoration: const InputDecoration(labelText: 'Year'),
-                      keyboardType: TextInputType.number,
-                    ),
-                    TextFormField(
-                      controller: pathController,
-                      readOnly: !isEditing,
-                      decoration: const InputDecoration(labelText: 'Path'),
+                      decoration: const InputDecoration(labelText: 'Type'),
                     ),
                   ],
                 ),
@@ -100,16 +118,22 @@ class _AlbumsPageState extends State<AlbumsPage> {
                   onPressed: () async {
                     if (isEditing) {
                       // Guardar los cambios
-                      int updatedYear = int.tryParse(yearController.text) ?? album['year'];
+                      int updatedType = 2;
 
-                      await MySQLDatabase.actualizarAlbum(
-                        album['id_album'], 
-                        nameController.text, 
-                        updatedYear, 
-                        pathController.text
+                      if(typeController.text == "Person"){
+                        updatedType = 0; 
+                      } else if(typeController.text == "Group"){
+                        updatedType = 1;
+                      }
+                      
+
+                      await MySQLDatabase.actualizarPerformer(
+                        performer['id_performer'], 
+                        updatedType, 
+                        nameController.text
                       );
 
-                      refreshAlbums(); // Refrescar la lista de álbumes
+                      refreshPerformers(); // Refrescar la lista de álbumes
 
                       Navigator.of(context).pop(); // Cerrar el diálogo después de guardar
                     }
@@ -127,11 +151,11 @@ class _AlbumsPageState extends State<AlbumsPage> {
     );
   }
 
-  void refreshAlbums() {
+  void refreshPerformers() {
     var songManager = SongManager();
-    songManager.refreshAlbums();
+    songManager.refreshPerformers();
     setState(() {
-      futureAlbums = songManager.data ?? Future.value([]);
+      futurePerformers = songManager.data ?? Future.value([]);
     });
   }
 }

@@ -44,7 +44,7 @@ class Mp3Miner {
           var title = tags['title'] ?? 'Unknown';
           var genre = tags['genre'] ?? 'Unknown';
           int track = int.tryParse(tags['track'] ?? tags['TRCK'] ?? 'Unknown') ?? 0;
-          var idType = 0;
+          var idType = 2;
           
           // Verificar si ya existe un performer con ese nombre e id_type
           var res = await conn.query(

@@ -11,40 +11,64 @@ class SongsPage extends StatefulWidget {
 
 class _SongsPageState extends State<SongsPage> {
   late Future<List<Map<String, dynamic>>> futureSongs;
+  TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    var songManager = SongManager();
-    songManager.refreshSongs();
-    futureSongs = songManager.data ?? Future.value([]);
+    refreshSongs();
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: futureSongs,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('No songs yet'));
-        }
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: TextField(
+            controller: searchController, // Controlador del buscador
+            decoration: InputDecoration(
+              labelText: 'Search',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onSubmitted: (value){
+              setState(() {
+                futureSongs = MySQLDatabase.buscarSongs(value);
+              });
+              print("Texto de búsqueda final: $value");
+            },
+          ),
+        ),
+        Expanded(
+          child: FutureBuilder<List<Map<String, dynamic>>>(
+            future: futureSongs,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Center(child: Text('No songs yet'));
+              }
 
-        var songs = snapshot.data!;
-        return ListView(
-          children: songs.map((song) {
-            return ListTile(
-              leading: const Icon(Icons.music_note),
-              title: Text(song['title'] ?? 'Unknown Title'),
-              subtitle: Text(song['artist'] ?? 'Unknown Artist'),
-              onTap: () => _showSongMenu(context, song),
-            );
-          }).toList(),
-        );
-      },
+              var songs = snapshot.data!;
+              return ListView(
+                children: songs.map((song) {
+                  return ListTile(
+                    leading: const Icon(Icons.music_note),
+                    title: Text(song['title'] ?? 'Unknown Title'),
+                    subtitle: Text(song['artist'] ?? 'Unknown Artist'),
+                    onTap: () => _showSongMenu(context, song),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -90,6 +114,7 @@ class _SongsPageState extends State<SongsPage> {
     TextEditingController albumController = TextEditingController(text: song['album'] ?? 'Unknown Album');
     TextEditingController yearController = TextEditingController(text: song['year'].toString());
     TextEditingController genreController = TextEditingController(text: song['genre'] ?? 'Unknown Genre');
+    TextEditingController trackController = TextEditingController(text: song['track'].toString());
 
     showDialog(
       context: context,
@@ -138,6 +163,11 @@ class _SongsPageState extends State<SongsPage> {
                       readOnly: !isEditing,
                       decoration: const InputDecoration(labelText: 'Genre'),
                     ),
+                    TextFormField(
+                      controller: trackController,
+                      readOnly: !isEditing,
+                      decoration: const InputDecoration(labelText: 'Track'),
+                    ),
                   ],
                 ),
               ),
@@ -147,6 +177,7 @@ class _SongsPageState extends State<SongsPage> {
                     if (isEditing) {
                       // Aquí se guardan los cambios
                       int updatedYear = int.tryParse(yearController.text) ?? song['year'];
+                      int updatedTrack = int.tryParse(trackController.text) ?? song['track'];
 
                       MySQLDatabase.actualizarRola(
                         song['id_rola'], 
@@ -156,11 +187,13 @@ class _SongsPageState extends State<SongsPage> {
                         artistController.text, 
                         albumController.text, 
                         updatedYear, 
-                        genreController.text
+                        genreController.text, 
+                        updatedTrack
                       );
 
+                      refreshSongs();
+
                       Navigator.of(context).pop(); // Cerrar el diálogo después de guardar
-                      initState();
                     }
                     setState(() {
                       isEditing = !isEditing; // Cambia entre editar y visualizar
@@ -175,5 +208,14 @@ class _SongsPageState extends State<SongsPage> {
       },
     );
   }
+
+  void refreshSongs() {
+    var songManager = SongManager();
+    songManager.refreshSongs();
+    setState(() {
+      futureSongs = songManager.data ?? Future.value([]);
+    });
+  }
+
 
 }
