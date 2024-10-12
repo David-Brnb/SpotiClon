@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spoti_clon/groups_page.dart';
 import 'performers_page.dart';
 import 'songs_page.dart'; // Archivo separado para manejar la lógica de la página de canciones
 import 'albums_page.dart'; // Archivo separado para manejar la lógica de la página de álbumes
@@ -45,7 +46,7 @@ class _MyHomePageState extends State<MyHomePage> {
         page = const PersonsPage();
         break;
       case 5:
-        page = const AlbumsPage();
+        page = const GroupsPage();
         break;
       default:
         throw UnimplementedError('no widget for $selectedIndex');

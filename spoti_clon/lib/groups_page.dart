@@ -1,45 +1,43 @@
 import 'package:flutter/material.dart';
-import 'song_manager.dart';
 import 'my_sql_connection.dart'; // Asegúrate de importar la lógica de la base de datos
 import 'package:intl/intl.dart'; // Para formatear fechas
 
-class PersonsPage extends StatefulWidget {
-  const PersonsPage({super.key});
+class GroupsPage extends StatefulWidget {
+  const GroupsPage({super.key});
 
   @override
-  State<PersonsPage> createState() => _PersonsPageState();
+  State<GroupsPage> createState() => _GroupsPageState();
 }
 
-class _PersonsPageState extends State<PersonsPage> {
-  late Future<List<Map<String, dynamic>>> futurePersons;
+class _GroupsPageState extends State<GroupsPage> {
+  late Future<List<Map<String, dynamic>>> futureGroups;
 
   @override
   void initState() {
     super.initState();
-    refreshPersons();
+    refresGroups();
   }
   
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<Map<String, dynamic>>>(
-      future: futurePersons,
+      future: futureGroups,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         } else if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('No persons yet'));
+          return const Center(child: Text('No groups yet'));
         }
 
-        var persons = snapshot.data!;
+        var groups = snapshot.data!;
         return ListView(
-          children: persons.map((person) {
+          children: groups.map((group) {
             return ListTile(
-              leading: const Icon(Icons.person),
-              title: Text(person['stage_name'] ?? 'Unknown person'),
-              subtitle: Text(person['real_name'] ?? 'Unknown person'),
-              onTap: () => _showPersonDetailsDialog(context, person),
+              leading: const Icon(Icons.group),
+              title: Text(group['name'] ?? 'Unknown group'),
+              onTap: () => _showGroupDetailsDialog(context, group),
             );
           }).toList(),
         );
@@ -50,14 +48,13 @@ class _PersonsPageState extends State<PersonsPage> {
   
 
   // Método para mostrar el diálogo de detalles de un álbum
-  void _showPersonDetailsDialog(BuildContext context, Map<String, dynamic> person) {
+  void _showGroupDetailsDialog(BuildContext context, Map<String, dynamic> group) {
     bool isEditing = false;
 
     // Creamos controladores para cada campo que queremos editar
-    TextEditingController stageNameController = TextEditingController(text: person['stage_name'].toString());
-    TextEditingController realNameController = TextEditingController(text: person['real_name'].toString());
-    TextEditingController birthDateController = TextEditingController(text: person['birth_date'].toString());
-    TextEditingController deathDateController = TextEditingController(text: person['death_date'].toString());
+    TextEditingController nameController = TextEditingController(text: group['name'].toString());
+    TextEditingController startDateController = TextEditingController(text: group['start_date'].toString());
+    TextEditingController endDateController = TextEditingController(text: group['end_date'].toString());
 
 
     // Función para seleccionar una fecha a partir de un string y devolver el nuevo string
@@ -96,7 +93,7 @@ class _PersonsPageState extends State<PersonsPage> {
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Person Details'),
+                  const Text('Group Details'),
                   IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: () {
@@ -109,32 +106,27 @@ class _PersonsPageState extends State<PersonsPage> {
                 child: Column(
                   children: [
                     TextFormField(
-                      controller: stageNameController,
+                      controller: nameController,
                       readOnly: !isEditing,
-                      decoration: const InputDecoration(labelText: 'Stage Name'),
+                      decoration: const InputDecoration(labelText: 'Group Name'),
                     ),
                     TextFormField(
-                      controller: realNameController,
-                      readOnly: !isEditing,
-                      decoration: const InputDecoration(labelText: 'Real Name'),
-                    ),
-                    TextFormField(
-                      controller: birthDateController,
-                      decoration: const InputDecoration(labelText: 'Birth Date'),
+                      controller: startDateController,
+                      decoration: const InputDecoration(labelText: 'Start Date'),
                       readOnly: true, // Hacer que el campo sea solo de lectura
                       onTap: () {
                         if (isEditing) {
-                          selectDate(context, birthDateController); // Mostrar el DatePicker solo si está en modo de edición
+                          selectDate(context, startDateController); // Mostrar el DatePicker solo si está en modo de edición
                         }
                       },
                     ),
                     TextFormField(
-                      controller: deathDateController,
-                      decoration: const InputDecoration(labelText: 'Death Date'),
+                      controller: endDateController,
+                      decoration: const InputDecoration(labelText: 'End Date'),
                       readOnly: true, // Hacer que el campo sea solo de lectura
                       onTap: () {
                         if (isEditing) {
-                          selectDate(context, deathDateController); // Mostrar el DatePicker solo si está en modo de edición
+                          selectDate(context, endDateController); // Mostrar el DatePicker solo si está en modo de edición
                         }
                       },
                     ),
@@ -146,15 +138,15 @@ class _PersonsPageState extends State<PersonsPage> {
                   onPressed: () async {
                     if (isEditing) {
                       // Guardar los cambios
-                      await MySQLDatabase.actualizarPersona(
-                        person['id_person'], 
-                        stageNameController.text, 
-                        realNameController.text, 
-                        birthDateController.text, 
-                        deathDateController.text
-                      );
+                      // await MySQLDatabase.actualizargroupa(
+                      //   group['id_group'], 
+                      //   nameController.text, 
+                      //   realNameController.text, 
+                      //   startDateController.text, 
+                      //   endDateController.text
+                      // );
 
-                      refreshPersons(); // Refrescar la lista de álbumes
+                      refresGroups(); // Refrescar la lista de álbumes
 
                       Navigator.of(context).pop(); // Cerrar el diálogo después de guardar
                     }
@@ -172,11 +164,9 @@ class _PersonsPageState extends State<PersonsPage> {
     );
   }
 
-  void refreshPersons() {
-    var songManager = SongManager();
-    songManager.refreshPersons();
+  void refresGroups() {
     setState(() {
-      futurePersons = songManager.data ?? Future.value([]);
+      futureGroups = MySQLDatabase.descargarGrupos();
     });
   }
 }

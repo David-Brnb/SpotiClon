@@ -295,6 +295,44 @@ class MySQLDatabase {
     return personas; // Retornar la lista de personas descargados
   }
 
+  static Future<List<Map<String, dynamic>>> descargarGrupos() async {
+    List<Map<String, dynamic>> Grupos = [];
+
+    var conn = await getConnection(); // Abre la conexión a la base de datos
+
+    try {
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Consultar todas las Grupos y sus tipos
+      var results = await conn.query('''
+        SELECT g.id_group, g.name, g.start_date, g.end_date
+        FROM `groups` g
+      ''');
+
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Iterar sobre los resultados y agregarlos a la lista de grupos
+      for (var row in results) {
+        Map<String, dynamic> group = {
+          'id_group': row['id_group'],
+          'name': row['name'].toString(),
+          'start_date': row['start_date'].toString(),
+          'end_date': row['end_date'].toString(),
+        };
+
+        Grupos.add(group);
+      }
+
+      print('Consulta de Grupos ejecutada correctamente');
+    } catch (e) {
+      print('Error al ejecutar la consulta de Grupos: $e');
+    } finally {
+      await conn.close(); // Cerrar la conexión a la base de datos
+    }
+
+    return Grupos; // Retornar la lista de Albumes descargados
+  }
+
 
 
 
@@ -392,11 +430,16 @@ class MySQLDatabase {
             ''');
             print("Persona eliminada: $name");
 
+            // Obtener el valor máximo actual de `id_group` en la tabla 'groups'
+            var maxIdResult = await conn.query('SELECT IFNULL(MAX(id_group), 0) as max_id FROM `groups`');
+            int newGroupId = maxIdResult.first['max_id'] + 1;
+
             // Insertar un nuevo registro en la tabla 'groups'
             await conn.query('''
-              INSERT INTO `groups` (name, start_date, end_date) 
-              VALUES ('${name.replaceAll("'", " ")}', 'Unknown', 'Unknown')
+              INSERT INTO `groups` (id_group, name, start_date, end_date) 
+              VALUES ($newGroupId,'${name.replaceAll("'", " ")}', 'Unknown', 'Unknown')
             ''');
+
             print("Grupo insertado: $name");
           }
 
@@ -426,6 +469,22 @@ class MySQLDatabase {
   }
 
   static Future<void> actualizarPersona(int idPerson, String stageName, String realName, String birthDate, String deathDate) async {
+    var conn = await getConnection();
+
+    // Actualizar la persona
+    await conn.query('''
+      UPDATE persons SET stage_name = '${stageName.replaceAll("'", " ")}', 
+      real_name = '${realName.replaceAll("'", " ")}', birth_date = '${birthDate.replaceAll("'", " ")}',
+      death_date = '${deathDate.replaceAll("'", " ")}' 
+      WHERE id_person = $idPerson
+    '''  
+    );
+
+    print('Persona actualizada con id: $idPerson');
+    await conn.close();
+  }
+
+  static Future<void> actualizarGrupo(int idgroup, String name, String birthDate, String deathDate) async {
     var conn = await getConnection();
 
     // Actualizar la persona
