@@ -64,6 +64,7 @@ Para iniciar la aplicación, usa (agregando una bandera '-d' y adelante su siste
 ```bash
 flutter run
 ```
+tambien se puede generar un ejecutable
 
 ## Funcionalidades Principales
 
