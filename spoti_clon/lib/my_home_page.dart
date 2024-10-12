@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:spoti_clon/groups_page.dart';
 import 'performers_page.dart';
-import 'songs_page.dart'; // Archivo separado para manejar la lógica de la página de canciones
-import 'albums_page.dart'; // Archivo separado para manejar la lógica de la página de álbumes
-import 'generator_page.dart'; // Archivo separado para manejar la lógica de la página de inicio
+import 'songs_page.dart'; // Lógica de la página de canciones
+import 'albums_page.dart'; // Lógica de la página de álbumes
+import 'generator_page.dart'; // Lógica de la página de inicio
 import 'persons_page.dart';
-import 'my_sql_connection.dart';
+import 'my_sql_connection.dart'; // Manejo de la conexión y creación de tablas en la base de datos
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
@@ -15,45 +15,46 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  var selectedIndex = 0;
-  bool isRailExpanded = false; // Variable para controlar el estado del NavigationRail
+  var selectedIndex = 0; // Índice de la página seleccionada en el NavigationRail
+  bool isRailExpanded = false; // Controla si el NavigationRail está expandido o colapsado
 
   @override
   void initState() {
     super.initState();
     
-    // Aquí llamas a la función que crea las tablas solo la primera vez
-    MySQLDatabase.createTables(); // Asegúrate de tener la clase y método correctos
+    // Llama a la función para crear las tablas en la base de datos al iniciar la app
+    MySQLDatabase.createTables();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Determina qué página mostrar según el índice seleccionado
     Widget page;
     switch (selectedIndex) {
       case 0:
-        page = const GeneratorPage();
+        page = const GeneratorPage(); // Página de inicio
         break;
       case 1:
-        page = const SongsPage();
+        page = const SongsPage(); // Página de canciones
         break;
       case 2:
-        page = const AlbumsPage();
+        page = const AlbumsPage(); // Página de álbumes
         break;
       case 3:
-        page = const PerformersPage();
+        page = const PerformersPage(); // Página de intérpretes
         break;
       case 4:
-        page = const PersonsPage();
+        page = const PersonsPage(); // Página de personas
         break;
       case 5:
-        page = const GroupsPage();
+        page = const GroupsPage(); // Página de grupos
         break;
       default:
-        throw UnimplementedError('no widget for $selectedIndex');
+        throw UnimplementedError('No hay widget para el índice $selectedIndex');
     }
 
     return LayoutBuilder(builder: (context, constraints) {
-      // Controlar si se debe expandir el NavigationRail basado en el tamaño o el botón
+      // Determina si debe expandir el NavigationRail según el tamaño de la pantalla o la interacción del usuario
       bool shouldExpand = isRailExpanded;
       bool shouldShowButton = constraints.maxWidth >= 650;
 
@@ -64,18 +65,20 @@ class _MyHomePageState extends State<MyHomePage> {
             SafeArea(
               child: Column(
                 children: [
-                  if(shouldShowButton)
+                  // Muestra el botón para expandir o colapsar el NavigationRail si el ancho es suficiente
+                  if (shouldShowButton)
                     IconButton(
                       icon: Icon(isRailExpanded ? Icons.arrow_back : Icons.menu),
                       onPressed: () {
                         setState(() {
-                          isRailExpanded = !isRailExpanded; // Alternar el estado
+                          isRailExpanded = !isRailExpanded; // Alterna entre expandido y colapsado
                         });
                       },
                     ),
+                  // NavigationRail que permite la navegación entre las diferentes páginas
                   Expanded(
                     child: NavigationRail(
-                      extended: shouldExpand,
+                      extended: shouldExpand, // Expande o colapsa el rail según el estado
                       minExtendedWidth: shouldExpand ? constraints.maxWidth / 4.16 : null,
                       destinations: const [
                         NavigationRailDestination(
@@ -100,13 +103,13 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                         NavigationRailDestination(
                           icon: Icon(Icons.group),
-                          label: Text('Gruops'),
+                          label: Text('Groups'),
                         ),
                       ],
-                      selectedIndex: selectedIndex,
+                      selectedIndex: selectedIndex, // Controla qué página está seleccionada
                       onDestinationSelected: (value) {
                         setState(() {
-                          selectedIndex = value;
+                          selectedIndex = value; // Cambia la página al seleccionar un destino
                         });
                       },
                     ),
@@ -114,6 +117,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 ],
               ),
             ),
+            // Muestra la página seleccionada ocupando el resto del espacio disponible
             Expanded(
               child: page,
             ),

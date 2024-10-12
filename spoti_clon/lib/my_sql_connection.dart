@@ -386,7 +386,7 @@ class MySQLDatabase {
     }
   }
 
-  static Future<void> actualizarPerformer(int idPerformer, int nuevoIdType, String name) async {
+  static Future<void> actualizarPerformer(int idPerformer, int nuevoIdType, String name, String pastName) async {
     try {
       var conn = await getConnection(); // Obtener la conexión a la base de datos
 
@@ -441,6 +441,22 @@ class MySQLDatabase {
             ''');
 
             print("Grupo insertado: $name");
+
+          } else if(nuevoIdType == 2){
+            await conn.query('''
+              DELETE FROM `groups`
+              WHERE name = '${name.replaceAll("'", " ")}'
+            ''');
+            print("Grupo eliminado: $name");
+
+            await conn.query('''
+              DELETE FROM persons
+              WHERE stage_name = '${name.replaceAll("'", " ")}'
+            ''');
+            print("Persona eliminada: $name");
+
+            print("Performer Desconocido: $name");
+            
           }
 
           // Actualizamos el `id_type` y el nombre del performer
@@ -451,6 +467,22 @@ class MySQLDatabase {
           ''');
 
         } else {
+          if(actualIdType == 0){
+            await conn.query('''
+              UPDATE persons 
+              SET stage_name = '${name.replaceAll("'", " ")}'
+              WHERE stage_name = '${pastName.replaceAll("'", " ")}'
+            ''');
+
+          } else if(actualIdType == 1){
+            // Actualizar el stage_name de performers donde el stage_name es igual al antiguo nombre del grupo (name)
+            await conn.query('''
+              UPDATE `groups`
+              SET name = '${name.replaceAll("'", " ")}'
+              WHERE name = '${pastName.replaceAll("'", " ")}'
+            ''');
+            print("se actualizo groups");
+          }
           // Ejecutar el UPDATE solo del nombre
           await conn.query('''
             UPDATE performers 
@@ -484,19 +516,27 @@ class MySQLDatabase {
     await conn.close();
   }
 
-  static Future<void> actualizarGrupo(int idgroup, String name, String birthDate, String deathDate) async {
+  static Future<void> actualizarGrupo(int idGroup, String name, String startDate, String endDate) async {
     var conn = await getConnection();
 
     // Actualizar la persona
     await conn.query('''
-      UPDATE persons SET stage_name = '${stageName.replaceAll("'", " ")}', 
-      real_name = '${realName.replaceAll("'", " ")}', birth_date = '${birthDate.replaceAll("'", " ")}',
-      death_date = '${deathDate.replaceAll("'", " ")}' 
-      WHERE id_person = $idPerson
-    '''  
-    );
+      UPDATE `groups` SET name = '${name.replaceAll("'", " ")}',
+      start_date = '${startDate.replaceAll("'", " ")}',
+      end_date = '${endDate.replaceAll("'", " ")}' 
+      WHERE id_group = $idGroup
+    ''');
 
-    print('Persona actualizada con id: $idPerson');
+    // Actualizar el stage_name de performers donde el stage_name es igual al antiguo nombre del grupo (name)
+    await conn.query('''
+      UPDATE performers 
+      SET name = '${name.replaceAll("'", " ")}'
+      WHERE name = '${name.replaceAll("'", " ")}'
+    ''');
+
+
+
+    print("Grupo y performer actualizados correctamente");
     await conn.close();
   }
 
