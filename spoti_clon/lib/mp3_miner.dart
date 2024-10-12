@@ -2,36 +2,37 @@ import 'dart:io';
 import 'my_sql_connection.dart';
 
 class Mp3Miner {
-  // Función para ejecutar ffmpeg y extraer los metadatos de los archivos MP3
+  // Función que extrae metadatos de archivos MP3 y los inserta en la base de datos
   Future<List<Map<String, dynamic>>> mineDirectory(String directoryPath, Function(double) updateProgress) async {
     List<Map<String, dynamic>> songs = [];
 
-    // Verificar si el directorio existe
+    // Verifica si el directorio existe
     Directory directory = Directory(directoryPath);
     if (!directory.existsSync()) {
       print("El directorio no existe");
       return songs;
     }
 
-    // Obtener todos los archivos MP3 en el directorio
+    // Obtiene todos los archivos MP3 del directorio
     var files = directory.listSync(recursive: true).where((element) => element.path.endsWith('.mp3')).toList();
     int totalFiles = files.length;
     var conn = await MySQLDatabase.getConnection();
 
+    // Procesa cada archivo MP3
     for (int i = 0; i < totalFiles; i++) {
       var file = files[i];
       if (file is File) {
-        // Agregar un retraso para ver el progreso más lentamente
-        await Future.delayed(const Duration(milliseconds: 100)); // Retraso de 2 segundos
+        // Retraso para visualizar el progreso más lento
+        await Future.delayed(const Duration(milliseconds: 100));
 
-        // Ejecutar ffmpeg para extraer los metadatos del archivo MP3
+        // Ejecuta ffmpeg para extraer los metadatos del archivo MP3
         var result = await Process.run(
           '/opt/homebrew/bin/ffmpeg',
-          ['-i', file.path, '-f', 'ffmetadata', '-'], // Comando de ffmpeg para extraer metadatos
+          ['-i', file.path, '-f', 'ffmetadata', '-'],
         );
 
         if (result.exitCode == 0) {
-          // Parsear la salida de ffmpeg y extraer los campos relevantes
+          // Analiza los metadatos obtenidos de ffmpeg
           Map<String, String> tags = _parseMetadata(result.stdout);
           songs.add({
             'title': tags['title'] ?? 'Unknown',   // Título de la canción
@@ -46,7 +47,7 @@ class Mp3Miner {
           int track = int.tryParse(tags['track'] ?? tags['TRCK'] ?? 'Unknown') ?? 0;
           var idType = 2;
           
-          // Verificar si ya existe un performer con ese nombre e id_type
+          // Verifica si el intérprete ya existe en la base de datos
           var res = await conn.query(
             'SELECT id_performer FROM performers WHERE name = ? AND id_type = ?',
             [name, idType]
@@ -55,23 +56,22 @@ class Mp3Miner {
           int idPerformer;
 
           if (res.isEmpty) {
-            // Si no existe, obtener el id_performer más alto y agregar el nuevo performer
+            // Si el intérprete no existe, lo inserta en la base de datos
             var maxIdResult = await conn.query('SELECT IFNULL(MAX(id_performer), 0) as max_id FROM performers');
             idPerformer = maxIdResult.first['max_id'] + 1;
 
-            // Insertar el nuevo performer
             await conn.query(
               'INSERT INTO performers (id_performer, id_type, name) VALUES (?, ?, ?)',
               [idPerformer, idType, name]
             );
             print('Nuevo performer insertado con id: $idPerformer');
           } else {
-            // Si ya existe, obtener el id_performer
+            // Si el intérprete ya existe, obtiene su id
             idPerformer = res.first['id_performer'];
             print('El performer ya existe con id: $idPerformer');
           }
 
-          // Ahora verificar y/o insertar el álbum
+          // Verifica si el álbum ya existe en la base de datos
           res = await conn.query(
             'SELECT COUNT(*) as count FROM albums WHERE name = ?',
             [album]
@@ -80,7 +80,7 @@ class Mp3Miner {
           var albumId;
 
           if (count == 0) {
-            // Si el álbum no existe, obtener el id_album más alto actual e insertarlo
+            // Si el álbum no existe, lo inserta en la base de datos
             var maxIdResult = await conn.query('SELECT IFNULL(MAX(id_album), 0) as max_id FROM albums');
             albumId = maxIdResult.first['max_id'] + 1;
 
@@ -90,7 +90,7 @@ class Mp3Miner {
             );
             print('Nuevo álbum insertado con id: $albumId');
           } else {
-            // Si el álbum ya existe, obtener el id_album
+            // Si el álbum ya existe, obtiene su id
             var existingAlbumResult = await conn.query(
               'SELECT id_album FROM albums WHERE name = ?',
               [album]
@@ -99,6 +99,7 @@ class Mp3Miner {
             print('Álbum ya existente, id: $albumId');
           }
 
+          // Verifica si la canción ya existe en la base de datos
           res = await conn.query(
             'SELECT COUNT(*) as count FROM rolas WHERE title = ?',
             [title]
@@ -107,7 +108,7 @@ class Mp3Miner {
           int newIdRola = -1;
 
           if(count == 0){
-            // Ahora insertar la canción (rola)
+            // Si la canción no existe, la inserta en la base de datos
             var maxIdRolaResult = await conn.query('SELECT IFNULL(MAX(id_rola), 0) as max_id FROM rolas');
             newIdRola = maxIdRolaResult.first['max_id'] + 1;
 
@@ -126,7 +127,7 @@ class Mp3Miner {
           print("Error al procesar ${file.path}: ${result.stderr}");
         }
 
-        // Actualizar el progreso
+        // Actualiza el progreso del procesamiento
         updateProgress((i + 1) / totalFiles);
       }
     }
@@ -136,7 +137,7 @@ class Mp3Miner {
     return songs;
   }
 
-  // Función para parsear la salida de ffmpeg y extraer los metadatos
+  // Función que analiza los metadatos obtenidos de ffmpeg
   Map<String, String> _parseMetadata(String metadata) {
     Map<String, String> tags = {};
     var lines = metadata.split('\n');

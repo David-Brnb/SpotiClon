@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+ import 'package:flutter/material.dart';
 import 'my_sql_connection.dart';
 import 'song_manager.dart'; // Lógica del SongManager
 
@@ -11,12 +11,12 @@ class SongsPage extends StatefulWidget {
 
 class _SongsPageState extends State<SongsPage> {
   late Future<List<Map<String, dynamic>>> futureSongs;
-  TextEditingController searchController = TextEditingController();
+  TextEditingController searchController = TextEditingController(); // Controlador para el campo de búsqueda
 
   @override
   void initState() {
     super.initState();
-    refreshSongs();
+    refreshSongs(); // Cargar la lista de canciones al iniciar la página
   }
 
   @override
@@ -25,8 +25,9 @@ class _SongsPageState extends State<SongsPage> {
       children: [
         Padding(
           padding: const EdgeInsets.all(8.0),
+          // Campo de búsqueda
           child: TextField(
-            controller: searchController, // Controlador del buscador
+            controller: searchController, // Controlador para manejar la entrada del usuario
             decoration: InputDecoration(
               labelText: 'Search',
               prefixIcon: const Icon(Icons.search),
@@ -34,23 +35,28 @@ class _SongsPageState extends State<SongsPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            onSubmitted: (value){
+            // Acción que se ejecuta al enviar el texto de búsqueda
+            onSubmitted: (value) {
               setState(() {
-                futureSongs = MySQLDatabase.buscarSongs(value);
+                futureSongs = MySQLDatabase.buscarSongs(value); // Buscar canciones con el valor ingresado
               });
               print("Texto de búsqueda final: $value");
             },
           ),
         ),
+        // Mostrar la lista de canciones
         Expanded(
           child: FutureBuilder<List<Map<String, dynamic>>>(
             future: futureSongs,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
+                // Mostrar indicador de progreso mientras se cargan las canciones
                 return const Center(child: CircularProgressIndicator());
               } else if (snapshot.hasError) {
+                // Mostrar mensaje de error si ocurre algún problema
                 return Center(child: Text('Error: ${snapshot.error}'));
               } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                // Mostrar mensaje si no hay canciones disponibles
                 return const Center(child: Text('No songs yet'));
               }
 
@@ -59,9 +65,9 @@ class _SongsPageState extends State<SongsPage> {
                 children: songs.map((song) {
                   return ListTile(
                     leading: const Icon(Icons.music_note),
-                    title: Text(song['title'] ?? 'Unknown Title'),
-                    subtitle: Text(song['artist'] ?? 'Unknown Artist'),
-                    onTap: () => _showSongMenu(context, song),
+                    title: Text(song['title'] ?? 'Unknown Title'), // Título de la canción
+                    subtitle: Text(song['artist'] ?? 'Unknown Artist'), // Artista de la canción
+                    onTap: () => _showSongMenu(context, song), // Mostrar el menú al seleccionar la canción
                   );
                 }).toList(),
               );
@@ -72,7 +78,7 @@ class _SongsPageState extends State<SongsPage> {
     );
   }
 
-  // Función para mostrar un menú o bottom sheet al presionar una canción
+  // Función para mostrar un menú o bottom sheet al seleccionar una canción
   void _showSongMenu(BuildContext context, Map<String, dynamic> song) {
     showModalBottomSheet(
       context: context,
@@ -87,7 +93,7 @@ class _SongsPageState extends State<SongsPage> {
                 title: const Text('Add to Playlist'),
                 onTap: () {
                   Navigator.pop(context); // Cerrar el menú
-                  // Lógica para agregar la canción a la playlist
+                  // Lógica para agregar la canción a una playlist
                 },
               ),
               ListTile(
@@ -95,7 +101,7 @@ class _SongsPageState extends State<SongsPage> {
                 title: const Text('View Details'),
                 onTap: () {
                   Navigator.pop(context); // Cerrar el menú
-                  _showDetailsDialog(context, song);
+                  _showDetailsDialog(context, song); // Mostrar los detalles de la canción
                 },
               ),
             ],
@@ -105,10 +111,11 @@ class _SongsPageState extends State<SongsPage> {
     );
   }
 
+  // Función para mostrar el diálogo de detalles de una canción
   void _showDetailsDialog(BuildContext context, Map<String, dynamic> song) {
-    bool isEditing = false; // Controla si el usuario está en modo de edición
+    bool isEditing = false; // Controla si el usuario está en modo edición
     
-    // Creamos controladores para cada campo que queremos editar
+    // Controladores para los campos de la canción
     TextEditingController titleController = TextEditingController(text: song['title']);
     TextEditingController artistController = TextEditingController(text: song['artist']);
     TextEditingController albumController = TextEditingController(text: song['album'] ?? 'Unknown Album');
@@ -116,6 +123,7 @@ class _SongsPageState extends State<SongsPage> {
     TextEditingController genreController = TextEditingController(text: song['genre'] ?? 'Unknown Genre');
     TextEditingController trackController = TextEditingController(text: song['track'].toString());
 
+    // Mostrar el diálogo con los detalles de la canción
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -137,9 +145,10 @@ class _SongsPageState extends State<SongsPage> {
               content: SingleChildScrollView(
                 child: Column(
                   children: [
+                    // Campos de edición de los detalles de la canción
                     TextFormField(
                       controller: titleController,
-                      readOnly: !isEditing, // Si no está en modo de edición, es solo lectura
+                      readOnly: !isEditing, // Solo lectura si no está en modo edición
                       decoration: const InputDecoration(labelText: 'Title'),
                     ),
                     TextFormField(
@@ -156,7 +165,7 @@ class _SongsPageState extends State<SongsPage> {
                       controller: yearController,
                       readOnly: !isEditing,
                       decoration: const InputDecoration(labelText: 'Year'),
-                      keyboardType: TextInputType.number, // Asegúrate que se use solo números
+                      keyboardType: TextInputType.number, // Asegura que solo se ingresen números
                     ),
                     TextFormField(
                       controller: genreController,
@@ -172,10 +181,11 @@ class _SongsPageState extends State<SongsPage> {
                 ),
               ),
               actions: [
+                // Botón para alternar entre edición y guardar cambios
                 ElevatedButton(
                   onPressed: () async {
                     if (isEditing) {
-                      // Aquí se guardan los cambios
+                      // Guardar los cambios en la base de datos
                       int updatedYear = int.tryParse(yearController.text) ?? song['year'];
                       int updatedTrack = int.tryParse(trackController.text) ?? song['track'];
 
@@ -191,12 +201,13 @@ class _SongsPageState extends State<SongsPage> {
                         updatedTrack
                       );
 
-                      refreshSongs();
+                      refreshSongs(); // Refrescar la lista de canciones
 
                       Navigator.of(context).pop(); // Cerrar el diálogo después de guardar
                     }
+                    // Alternar entre modo edición y visualización
                     setState(() {
-                      isEditing = !isEditing; // Cambia entre editar y visualizar
+                      isEditing = !isEditing;
                     });
                   },
                   child: Text(isEditing ? 'Guardar' : 'Editar'),
@@ -209,6 +220,7 @@ class _SongsPageState extends State<SongsPage> {
     );
   }
 
+  // Refrescar la lista de canciones desde la base de datos
   void refreshSongs() {
     var songManager = SongManager();
     songManager.refreshSongs();
@@ -216,6 +228,4 @@ class _SongsPageState extends State<SongsPage> {
       futureSongs = songManager.data ?? Future.value([]);
     });
   }
-
-
 }

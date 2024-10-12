@@ -295,6 +295,44 @@ class MySQLDatabase {
     return personas; // Retornar la lista de personas descargados
   }
 
+  static Future<List<Map<String, dynamic>>> descargarGrupos() async {
+    List<Map<String, dynamic>> Grupos = [];
+
+    var conn = await getConnection(); // Abre la conexión a la base de datos
+
+    try {
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Consultar todas las Grupos y sus tipos
+      var results = await conn.query('''
+        SELECT g.id_group, g.name, g.start_date, g.end_date
+        FROM `groups` g
+      ''');
+
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Iterar sobre los resultados y agregarlos a la lista de grupos
+      for (var row in results) {
+        Map<String, dynamic> group = {
+          'id_group': row['id_group'],
+          'name': row['name'].toString(),
+          'start_date': row['start_date'].toString(),
+          'end_date': row['end_date'].toString(),
+        };
+
+        Grupos.add(group);
+      }
+
+      print('Consulta de Grupos ejecutada correctamente');
+    } catch (e) {
+      print('Error al ejecutar la consulta de Grupos: $e');
+    } finally {
+      await conn.close(); // Cerrar la conexión a la base de datos
+    }
+
+    return Grupos; // Retornar la lista de Albumes descargados
+  }
+
 
 
 
@@ -348,7 +386,7 @@ class MySQLDatabase {
     }
   }
 
-  static Future<void> actualizarPerformer(int idPerformer, int nuevoIdType, String name) async {
+  static Future<void> actualizarPerformer(int idPerformer, int nuevoIdType, String name, String pastName) async {
     try {
       var conn = await getConnection(); // Obtener la conexión a la base de datos
 
@@ -392,12 +430,33 @@ class MySQLDatabase {
             ''');
             print("Persona eliminada: $name");
 
+            // Obtener el valor máximo actual de `id_group` en la tabla 'groups'
+            var maxIdResult = await conn.query('SELECT IFNULL(MAX(id_group), 0) as max_id FROM `groups`');
+            int newGroupId = maxIdResult.first['max_id'] + 1;
+
             // Insertar un nuevo registro en la tabla 'groups'
             await conn.query('''
-              INSERT INTO `groups` (name, start_date, end_date) 
-              VALUES ('${name.replaceAll("'", " ")}', 'Unknown', 'Unknown')
+              INSERT INTO `groups` (id_group, name, start_date, end_date) 
+              VALUES ($newGroupId,'${name.replaceAll("'", " ")}', 'Unknown', 'Unknown')
             ''');
+
             print("Grupo insertado: $name");
+
+          } else if(nuevoIdType == 2){
+            await conn.query('''
+              DELETE FROM `groups`
+              WHERE name = '${name.replaceAll("'", " ")}'
+            ''');
+            print("Grupo eliminado: $name");
+
+            await conn.query('''
+              DELETE FROM persons
+              WHERE stage_name = '${name.replaceAll("'", " ")}'
+            ''');
+            print("Persona eliminada: $name");
+
+            print("Performer Desconocido: $name");
+            
           }
 
           // Actualizamos el `id_type` y el nombre del performer
@@ -408,6 +467,22 @@ class MySQLDatabase {
           ''');
 
         } else {
+          if(actualIdType == 0){
+            await conn.query('''
+              UPDATE persons 
+              SET stage_name = '${name.replaceAll("'", " ")}'
+              WHERE stage_name = '${pastName.replaceAll("'", " ")}'
+            ''');
+
+          } else if(actualIdType == 1){
+            // Actualizar el stage_name de performers donde el stage_name es igual al antiguo nombre del grupo (name)
+            await conn.query('''
+              UPDATE `groups`
+              SET name = '${name.replaceAll("'", " ")}'
+              WHERE name = '${pastName.replaceAll("'", " ")}'
+            ''');
+            print("se actualizo groups");
+          }
           // Ejecutar el UPDATE solo del nombre
           await conn.query('''
             UPDATE performers 
@@ -438,6 +513,30 @@ class MySQLDatabase {
     );
 
     print('Persona actualizada con id: $idPerson');
+    await conn.close();
+  }
+
+  static Future<void> actualizarGrupo(int idGroup, String name, String startDate, String endDate) async {
+    var conn = await getConnection();
+
+    // Actualizar la persona
+    await conn.query('''
+      UPDATE `groups` SET name = '${name.replaceAll("'", " ")}',
+      start_date = '${startDate.replaceAll("'", " ")}',
+      end_date = '${endDate.replaceAll("'", " ")}' 
+      WHERE id_group = $idGroup
+    ''');
+
+    // Actualizar el stage_name de performers donde el stage_name es igual al antiguo nombre del grupo (name)
+    await conn.query('''
+      UPDATE performers 
+      SET name = '${name.replaceAll("'", " ")}'
+      WHERE name = '${name.replaceAll("'", " ")}'
+    ''');
+
+
+
+    print("Grupo y performer actualizados correctamente");
     await conn.close();
   }
 
